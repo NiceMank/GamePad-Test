@@ -31,13 +31,32 @@ le mode **matériel** lit la manette via le plugin natif.
 
 ## Aperçus
 
-| Accueil (sombre) | Test — moteurs | PadLab Link |
-|---|---|---|
-| ![](docs/captures/accueil-sombre.png) | ![](docs/captures/test-moteurs.png) | ![](docs/captures/link.png) |
+Refonte de l'interface et manette 3D reconstruite pièce par pièce (rotation 360°,
+modèle propre à chaque famille, allumage des touches identique à un appui réel).
 
-| Réglages sombre | Réglages clair |
-|---|---|
-| ![](docs/captures/reglages-sombre.png) | ![](docs/captures/reglages-clair.png) |
+| Rotation complète (DualSense) |
+|---|
+| ![](docs/captures/rotation_dualsense.png) |
+
+| Un modèle par famille |
+|---|
+| ![](docs/captures/familles.png) |
+
+| Accueil | Test d'entrées | Analyse |
+|---|---|---|
+| ![](apps/mobile/test/goldens/home_light.png) | ![](apps/mobile/test/goldens/test_light.png) | ![](apps/mobile/test/goldens/analysis_dark.png) |
+
+| Batterie | Remapping | PadLab Link |
+|---|---|---|
+| ![](apps/mobile/test/goldens/battery_light.png) | ![](apps/mobile/test/goldens/remap_dark.png) | ![](apps/mobile/test/goldens/link_light.png) |
+
+Les rendus sont produits par les tests (`packages/pad_ui/test/preview_strip_test.dart`
+et `apps/mobile/test/screens_golden_test.dart`) : pas de capture à l'œil, donc pas
+d'illustration qui vieillit sans qu'on le voie.
+
+Un appui sur une touche du modèle 3D passe par le même chemin qu'un appui
+matériel (remap → état → journal → analyseurs) et se relâche seul. Un test le
+vérifie : `apps/mobile/test/tap_to_state_test.dart`.
 
 ## PadLab Link (PC)
 
