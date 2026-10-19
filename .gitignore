@@ -19,3 +19,8 @@ windows/flutter/ephemeral/
 
 # Secrets locaux
 github_token.txt
+
+# Artefacts CI téléchargés localement
+artifacts/
+*.apk
+*.aab
