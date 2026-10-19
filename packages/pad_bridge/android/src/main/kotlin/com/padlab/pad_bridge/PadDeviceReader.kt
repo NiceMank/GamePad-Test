@@ -17,10 +17,7 @@ import android.view.MotionEvent
  * si une capacité n'est pas exposée, on renvoie `false` plutôt qu'une
  * valeur inventée.
  */
-class PadDeviceReader(private val context: Context) {
-
-    private val inputManager: InputManager? =
-        context.getSystemService(Context.INPUT_SERVICE) as? InputManager
+class PadDeviceReader(@Suppress("unused") private val context: Context) {
 
     /** Appareils actuellement connectés, manettes et joysticks. */
     fun listGamepads(): List<Map<String, Any?>> {
