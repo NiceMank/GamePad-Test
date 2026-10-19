@@ -1,7 +1,6 @@
 package com.padlab.pad_bridge
 
 import android.content.Context
-import android.hardware.input.InputManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -217,7 +216,7 @@ class PadDeviceReader(private val context: Context) {
 
     companion object {
         /** Ordre aligné avec l'enum Dart PadButton. */
-        private val BUTTON_INDEX = mapOf(
+        private val BUTTON_INDEX: Map<Int, Int> = mapOf(
             KeyEvent.KEYCODE_BUTTON_A to 0,
             KeyEvent.KEYCODE_BUTTON_B to 1,
             KeyEvent.KEYCODE_BUTTON_X to 2,
@@ -235,7 +234,6 @@ class PadDeviceReader(private val context: Context) {
             KeyEvent.KEYCODE_BUTTON_START to 14,
             KeyEvent.KEYCODE_BUTTON_SELECT to 15,
             KeyEvent.KEYCODE_BUTTON_MODE to 16,
-            KeyEvent.KEYCODE_BUTTON_SHARE to 17,
             KeyEvent.KEYCODE_BUTTON_1 to 18,
             KeyEvent.KEYCODE_BUTTON_2 to 19,
             KeyEvent.KEYCODE_BUTTON_3 to 20,

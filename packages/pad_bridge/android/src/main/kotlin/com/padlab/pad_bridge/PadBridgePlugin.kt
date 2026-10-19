@@ -184,15 +184,19 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
     }
 
     private fun emitAxes(event: MotionEvent, deviceId: Int, historyIndex: Int) {
+        val device = event.device ?: return
         val time = if (historyIndex >= 0) event.getHistoricalEventTime(historyIndex) else event.eventTime
-        for (axis in 0 until MotionEvent.AXIS_MAX) {
+        // On itère sur les plages réellement exposées par la manette : plus
+        // rapide que de balayer tous les codes d'axe, et sans dépendre de
+        // MotionEvent.AXIS_MAX qui n'est pas public.
+        for (range in device.motionRanges) {
+            val axis = range.axis
             val raw = if (historyIndex >= 0) {
                 event.getHistoricalAxisValue(axis, historyIndex)
             } else {
                 event.getAxisValue(axis)
             }
             if (raw == 0f && axis !in ACTIVE_AXES) continue
-            val range = event.device?.getMotionRange(axis) ?: continue
             val span = range.max - range.min
             if (span <= 0f) continue
             val unit = ((raw - range.min) / span).coerceIn(0f, 1f)
