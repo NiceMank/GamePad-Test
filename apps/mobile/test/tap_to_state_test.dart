@@ -34,23 +34,18 @@ void main() {
     await tester.pump();
 
     // Balayage grossier : on cherche un point qui tombe sur une pièce.
-    PadButton? touched;
-    final positions = <Offset>[];
-    for (var y = 40.0; y < 380 && touched == null; y += 14) {
-      for (var x = 40.0; x < 380 && touched == null; x += 14) {
-        positions.add(Offset(x, y));
-      }
-    }
-    for (final p in positions) {
-      await tester.tapAt(p);
-      await tester.pump();
-      if (session.state.pressed.isNotEmpty) {
-        touched = session.state.pressed.first;
-        break;
+    final hits = <PadButton>{};
+    for (var y = 40.0; y < 380; y += 14) {
+      for (var x = 40.0; x < 380; x += 14) {
+        if (hits.isNotEmpty) break;
+        await tester.tapAt(Offset(x, y));
+        await tester.pump();
+        hits.addAll(session.state.pressed);
       }
     }
 
-    expect(touched, isNotNull, reason: 'aucun clic n\'a atteint une pièce du modèle');
+    expect(hits, isNotEmpty, reason: 'aucun clic n\'a atteint une pièce du modèle');
+    final touched = hits.first;
 
     // Le clic est bien passé par le pipeline complet : journal d'événements
     // et analyseurs alimentés comme pour un appui matériel.
