@@ -7,7 +7,10 @@ plugins {
 android {
     namespace = "com.padlab.padlab"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Aucun code natif dans le projet (le plugin est en Kotlin) : déclarer
+    // une version de NDK ne faisait que déclencher un téléchargement de
+    // ~1 Go, régulièrement corrompu sur les runners.
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
