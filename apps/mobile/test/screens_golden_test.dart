@@ -99,4 +99,9 @@ void main() {
   testWidgets('reglages clair', (t) => shoot(t, SettingsScreen(themeMode: ThemeMode.light, onThemeMode: (_) {}), 'settings_light'), skip: !enabled);
   testWidgets('remap clair', (t) => shoot(t, const RemapScreen(), 'remap_light'), skip: !enabled);
   testWidgets('link clair', (t) => shoot(t, const LinkScreen(), 'link_light'), skip: !enabled);
+  testWidgets('remap sombre', (t) => shoot(t, const RemapScreen(), 'remap_dark', brightness: Brightness.dark), skip: !enabled);
+  testWidgets('analyse sombre', (t) => shoot(t, const AnalysisScreen(), 'analysis_dark', brightness: Brightness.dark), skip: !enabled);
+  testWidgets('batterie sombre', (t) => shoot(t, const BatteryScreen(), 'battery_dark', brightness: Brightness.dark), skip: !enabled);
+  testWidgets('reglages sombre', (t) => shoot(t, SettingsScreen(themeMode: ThemeMode.dark, onThemeMode: (_) {}), 'settings_dark', brightness: Brightness.dark), skip: !enabled);
+  testWidgets('link sombre', (t) => shoot(t, const LinkScreen(), 'link_dark', brightness: Brightness.dark), skip: !enabled);
 }

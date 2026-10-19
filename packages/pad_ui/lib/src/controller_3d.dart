@@ -320,34 +320,37 @@ class _Controller3DPainter extends CustomPainter {
 
     final projected = <List<Offset>>[];
     final faceList = <({
-      int partOrder,
+      int group,
       int layer,
+      double elevation,
       double depth,
       List<Offset> pts,
       Color color,
     })>[];
 
-    // Profondeur moyenne de chaque pièce : les faces d'une même pièce sont
-    // peintes d'un bloc. Trier toutes les faces entre elles faisait passer
-    // la cuvette d'un bouton par-dessus son capuchon (surfaces coplanaires).
-    final partDepth = <double>[];
-    for (final part in scene.parts) {
-      var sum = 0.0;
+    // La coque est un prisme convexe : les gros polygones de sa face avant
+    // ne peuvent pas être triés par profondeur moyenne face aux petits
+    // objets posés dessus (un stick passait dessous). On raisonne donc par
+    // plans : ce qui est derrière la coque, la coque, puis ce qui est posé
+    // dessus — et l'ordre des deux premiers groupes s'inverse quand on
+    // regarde la manette de dos.
+    const planeZ = ControllerScene.front;
+    final seesFront = camera.rotate(const V3(0, 0, 1)).z > 0;
+
+    int groupOf(Part part) {
+      if (part.role == 'shell') return 1;
+      var minZ = double.infinity;
+      var maxZ = double.negativeInfinity;
       for (final v in part.verts) {
-        sum += camera.depthOf(v);
+        if (v.z < minZ) minZ = v.z;
+        if (v.z > maxZ) maxZ = v.z;
       }
-      final mean = part.verts.isEmpty ? 0.0 : sum / part.verts.length;
-      partDepth.add(mean - (part.role == 'shell' ? 0.02 : 0.0));
-    }
-    final order = List<int>.generate(scene.parts.length, (i) => i)
-      ..sort((a, b) => partDepth[a].compareTo(partDepth[b]));
-    final rank = List<int>.filled(scene.parts.length, 0);
-    for (var i = 0; i < order.length; i++) {
-      rank[order[i]] = i;
+      if (minZ > planeZ - 0.02) return 2; // posé sur la façade
+      if (maxZ < planeZ - 0.02) return 0; // gâchettes, trappe, vis
+      return 1;
     }
 
-    for (var p = 0; p < scene.parts.length; p++) {
-      final part = scene.parts[p];
+    for (final part in scene.parts) {
       final pts = [for (final v in part.verts) project(v)];
       projected.add(pts);
       var value = part.button == null ? 0.0 : state.axisForButton(part.button!);
@@ -358,6 +361,18 @@ class _Controller3DPainter extends CustomPainter {
           (value >= 0.5 ||
               (flashing != null &&
                   (flashing == part.button || part.buttons.contains(flashing))));
+      // Élévation = point le plus haut de la pièce : sur une façade, l'ordre
+      // de peinture correct est du plus bas au plus haut, pas la profondeur
+      // moyenne (une grande plaque fine passait par-dessus la croix).
+      var elevation = double.negativeInfinity;
+      for (final v in part.verts) {
+        if (v.z > elevation) elevation = v.z;
+      }
+      var rawGroup = groupOf(part);
+      // Vue de dos : les détails de façade sont derrière, la coque devant.
+      final group = rawGroup == 1
+          ? 1
+          : (seesFront ? rawGroup : 2 - rawGroup);
       for (final face in part.faces) {
         var depth = 0.0;
         for (final i in face.indices) {
@@ -365,8 +380,9 @@ class _Controller3DPainter extends CustomPainter {
         }
         depth /= face.indices.length;
         faceList.add((
-          partOrder: rank[p],
+          group: group,
           layer: face.layer,
+          elevation: elevation,
           depth: depth,
           pts: [for (final i in face.indices) pts[i]],
           // Un bouton enfoncé s'allume : la pièce prend la teinte d'accent,
@@ -376,13 +392,18 @@ class _Controller3DPainter extends CustomPainter {
       }
     }
 
-    // Peintre : pièce par pièce, du plus lointain au plus proche, puis face
-    // par face à l'intérieur de chaque pièce.
+    // Peintre : groupe (derrière / coque / posé sur la façade), puis
+    // hauteur de pose, puis profondeur.
     faceList.sort((a, b) {
-      final byPart = a.partOrder.compareTo(b.partOrder);
-      if (byPart != 0) return byPart;
-      final byLayer = a.layer.compareTo(b.layer);
-      return byLayer != 0 ? byLayer : a.depth.compareTo(b.depth);
+      final g = a.group.compareTo(b.group);
+      if (g != 0) return g;
+      final l = a.layer.compareTo(b.layer);
+      if (l != 0) return l;
+      if (a.group == 2) {
+        final e = a.elevation.compareTo(b.elevation);
+        if (e != 0) return e;
+      }
+      return a.depth.compareTo(b.depth);
     });
 
     final fill = Paint()..style = PaintingStyle.fill;
@@ -456,9 +477,9 @@ class _Controller3DPainter extends CustomPainter {
       orElse: () => scene.parts.first,
     );
     final bodyPts = projected[scene.parts.indexOf(bodyPart)];
-    final ringSize = bodyPart.seam.isNotEmpty
-        ? bodyPart.seam.length
-        : bodyPts.length ~/ 2;
+    final ringSize = bodyPart.ringSize == 0
+        ? bodyPts.length ~/ 2
+        : bodyPart.ringSize;
     final ringCount = ringSize == 0 ? 1 : bodyPts.length ~/ ringSize;
     var nearest = 0;
     var nearestDepth = double.negativeInfinity;
@@ -519,11 +540,33 @@ class _Controller3DPainter extends CustomPainter {
           ..shader = RadialGradient(
             center: const Alignment(-0.35, -0.45),
             colors: [
-              Colors.white.withValues(alpha: 0.16),
-              Colors.black.withValues(alpha: 0.22),
+              Colors.white.withValues(alpha: 0.20),
+              Colors.white.withValues(alpha: 0.02),
+              Colors.black.withValues(alpha: 0.30),
             ],
-            stops: const [0.0, 1.0],
+            stops: const [0.0, 0.55, 1.0],
           ).createShader(rect),
+      );
+    }
+
+    // Liseré lumineux du pavé tactile (DualSense / DualShock) : un trait
+    // continu qui suit son pourtour.
+    final touch = scene.parts.where((part) => part.name == 'touchpad');
+    if (touch.isNotEmpty) {
+      final part = touch.first;
+      final ringSize = part.ringSize;
+      final pts = projected[scene.parts.indexOf(part)];
+      canvas.drawPath(
+        Path()
+          ..addPolygon(
+            [for (var i = 0; i < ringSize; i++) pts[i]],
+            true,
+          ),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeJoin = StrokeJoin.round
+          ..color = accent.withValues(alpha: 0.85),
       );
     }
 
@@ -551,6 +594,7 @@ class _Controller3DPainter extends CustomPainter {
             text: TextSpan(
               text: part.label,
               style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: (0.072 * fit.scale * persp * part.labelScale)
                     .clamp(7.0, 30.0),
                 fontWeight: FontWeight.w800,

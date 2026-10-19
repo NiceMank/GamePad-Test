@@ -189,10 +189,10 @@ class _Layout {
         );
       case ControllerFamily.steamDeck:
         return const _Layout(
-          leftStick: Offset(-0.352, 0.096),
-          rightStick: Offset(0.352, 0.096),
-          dpad: Offset(-0.612, -0.302),
-          face: Offset(0.612, -0.302),
+          leftStick: Offset(-0.268, 0.114),
+          rightStick: Offset(0.268, 0.114),
+          dpad: Offset(-0.418, -0.246),
+          face: Offset(0.418, -0.246),
           symmetric: true,
         );
       default:
@@ -345,7 +345,7 @@ class ControllerScene {
   /// Boutons cliquables : nom logique + centre monde + rayon.
   final List<({PadButton button, V3 center, double radius})> buttons;
 
-  static const double thickness = 0.100;
+  static const double thickness = 0.150;
   static const double front = thickness;
 
   static ControllerScene build(ControllerFamily family, Brightness brightness) {
@@ -496,17 +496,7 @@ class ControllerScene {
       cap.capZ = front + 0.132;
       cap.button = click;
       parts.add(cap);
-      // 5. Rebord du capuchon + creux central (la surface est concave).
-      parts.add(cylinder(
-        center: center,
-        radius: 0.094,
-        zBase: front + 0.132,
-        height: 0.003,
-        top: Color.lerp(p.stickTop, Colors.white, 0.10)!,
-        side: p.stick,
-        segments: 30,
-        name: 'rebord',
-      ));
+      // 5. Creux central : la surface du capuchon est concave.
       parts.add(cylinder(
         center: center,
         radius: 0.068,
@@ -528,22 +518,6 @@ class ControllerScene {
     addStick(layout.rightStick, 'RS', PadButton.r3);
 
     // --- croix directionnelle ----------------------------------------------
-    final plate = _roundedRect(
-      layout.dpad.dx,
-      layout.dpad.dy,
-      0.340,
-      0.340,
-      0.076,
-    );
-    parts.add(extrude(
-      contour: plate,
-      zFront: front + 0.002,
-      zBack: front - 0.001,
-      front: Color.lerp(p.shell, p.well, 0.16)!,
-      side: p.shellSide,
-      back: p.well,
-      name: 'assise-croix',
-    ));
     final dpadPart = extrude(
       contour: _cross(layout.dpad.dx, layout.dpad.dy, 0.140, 0.052),
       zFront: front + 0.034,
@@ -603,10 +577,12 @@ class ControllerScene {
         layout.face.dy + dy * diamond,
       );
       // Cuvette sombre autour du bouton : le bouton est en creux, pas collé.
+      // Elle affleure la coque (0,004 sous la surface) pour ne pas dépasser
+      // sur la silhouette quand on regarde de biais.
       parts.add(cylinder(
         center: c,
         radius: 0.072,
-        zBase: front + 0.001,
+        zBase: front - 0.004,
         height: 0.003,
         top: Color.lerp(p.shell, p.well, 0.42)!,
         side: p.shellSide,
@@ -659,22 +635,9 @@ class ControllerScene {
         back: p.shellSide,
         name: 'touchpad',
       ));
-      // Liseré lumineux qui encadre le pavé (light bar DualSense).
-      for (final (cx, cy, w, h) in [
-        (0.0, padY + padH / 2 + 0.010, padW + 0.030, 0.014),
-        (-(padW / 2 + 0.014), padY, 0.014, padH + 0.016),
-        (padW / 2 + 0.014, padY, 0.014, padH + 0.016),
-      ]) {
-        parts.add(extrude(
-          contour: _roundedRect(cx, cy, w, h, 0.010),
-          zFront: front + 0.012,
-          zBack: front + 0.004,
-          front: p.accent,
-          side: p.accent,
-          back: p.accent,
-          name: 'lightbar',
-        ));
-      }
+      // Le liseré lumineux est tracé par le painter (trait), pas par des
+      // barres extrudées : trois rectangles semblaient posés sur le pavé.
+
       final tp = parts.firstWhere((x) => x.name == 'touchpad');
       tp
         ..button = PadButton.touchpad

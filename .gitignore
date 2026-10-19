@@ -24,3 +24,6 @@ github_token.txt
 artifacts/
 *.apk
 *.aab
+
+# Échecs de goldens (images de diff)
+**/test/failures/

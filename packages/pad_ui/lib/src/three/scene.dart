@@ -48,6 +48,10 @@ class Part {
   /// Anneau de couture (jonction coque haute / coque basse), s'il existe.
   List<V3> seam = const [];
 
+  /// Nombre de sommets d'un anneau de contour (extrude en pose trois : avant,
+  /// joint, arrière). Le painter s'en sert pour retrouver les anneaux.
+  int ringSize = 0;
+
   /// Symbole vectoriel à graver au centre de la pièce.
   PadGlyph? glyph;
   Color? glyphColor;
@@ -116,6 +120,7 @@ Part extrude({
 }) {
   final part = Part(name: name);
   final n = contour.length;
+  part.ringSize = n;
 
   // Faces avant / arrière (index dans l'ordre du contour).
   final frontStart = part.verts.length;
