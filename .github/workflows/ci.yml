@@ -114,14 +114,21 @@ jobs:
         run: |
           $src = "$env:RUNNER_TEMP/vigemclient"
           git clone --depth 1 https://github.com/nefarius/ViGEmClient.git $src
-          cmake -S $src -B "$src/build" -DViGEmClient_DLL=ON -A x64
+          # Sans VIGEM_EXPORTS, le CMake amont produit une DLL sans le moindre
+          # export (le #define est dans Client.h, jamais active par le build).
+          cmake -S $src -B "$src/build" -DViGEmClient_DLL=ON -DCMAKE_CXX_FLAGS="/DVIGEM_EXPORTS" -A x64
           cmake --build "$src/build" --config Release
           $dll = Get-ChildItem -Recurse "$src/build" -Filter ViGEmClient.dll | Select-Object -First 1
           if (-not $dll) { throw "ViGEmClient.dll introuvable apres compilation" }
           $out = "apps/pclink/build/windows/x64/runner/Release"
           Copy-Item $dll.FullName "$out/ViGEmClient.dll"
           Copy-Item "$src/LICENSE" "$out/ViGEmClient-LICENSE.txt"
-          Write-Host "DLL copiee : $($dll.Length) octets"
+          # Verification : une DLL sans export ferait echouer le chargement FFI.
+          $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes("$out/ViGEmClient.dll"))
+          if ($ascii -notmatch 'vigem_target_x360_update') {
+            throw "ViGEmClient.dll ne contient pas les exports attendus"
+          }
+          Write-Host "DLL verifiee : $($dll.Length) octets, exports presents"
       - name: Notice de lancement
         shell: pwsh
         run: |
