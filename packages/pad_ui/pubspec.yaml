@@ -1,0 +1,19 @@
+name: pad_ui
+description: Design system PadLab — thème sombre/clair, manette 2D vectorielle, manette 3D procédurale, radars et jauges.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pad_core:
+    path: ../pad_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

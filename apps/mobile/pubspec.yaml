@@ -1,0 +1,25 @@
+name: padlab
+description: PadLab — test, diagnostic et remapping de manettes. Android d'abord.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pad_core:
+    path: ../../packages/pad_core
+  pad_ui:
+    path: ../../packages/pad_ui
+  pad_bridge:
+    path: ../../packages/pad_bridge
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

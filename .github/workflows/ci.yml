@@ -1,0 +1,142 @@
+name: Build PadLab
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  qualite:
+    name: Analyse + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Dépendances
+        run: |
+          flutter pub get --directory packages/pad_core
+          flutter pub get --directory packages/pad_ui
+          flutter pub get --directory packages/pad_bridge
+          flutter pub get --directory apps/mobile
+          flutter pub get --directory apps/pclink
+      - name: Analyse statique
+        run: |
+          flutter analyze --no-pub packages/pad_core
+          flutter analyze --no-pub packages/pad_ui
+          flutter analyze --no-pub packages/pad_bridge
+          flutter analyze --no-pub apps/mobile
+          flutter analyze --no-pub apps/pclink
+      - name: Tests unitaires
+        run: |
+          flutter test --no-pub packages/pad_core
+          flutter test --no-pub packages/pad_bridge
+          flutter test --no-pub apps/mobile
+          flutter test --no-pub apps/pclink
+
+  apk:
+    name: APK Android
+    runs-on: ubuntu-latest
+    needs: qualite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Build
+        working-directory: apps/mobile
+        run: |
+          flutter pub get
+          flutter build apk --release
+          flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: padlab-android
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/*.apk
+            apps/mobile/build/app/outputs/bundle/**/*.aab
+
+  web:
+    name: Build web
+    runs-on: ubuntu-latest
+    needs: qualite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Build
+        working-directory: apps/mobile
+        run: |
+          flutter pub get
+          flutter build web --release --no-wasm-dry-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: padlab-web
+          path: apps/mobile/build/web
+
+  windows:
+    name: PadLab Link (Windows)
+    runs-on: windows-latest
+    needs: qualite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Build
+        working-directory: apps/pclink
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+          flutter build windows --release
+      - name: ViGEmClient.dll
+        working-directory: apps/pclink
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          # Client ViGEm (MIT) publié par le projet ViGEmBus.
+          $url = 'https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe'
+          Write-Host "Le pilote ViGEmBus doit être installé par l'utilisateur : $url"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: padlab-link-windows
+          path: apps/pclink/build/windows/x64/runner/Release
+
+  linux:
+    name: PadLab Link (Linux)
+    runs-on: ubuntu-latest
+    needs: qualite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Dépendances système
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libblkid-dev
+      - name: Build
+        working-directory: apps/pclink
+        run: |
+          flutter config --enable-linux-desktop
+          flutter pub get
+          flutter build linux --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: padlab-link-linux
+          path: apps/pclink/build/linux/x64/release/bundle
