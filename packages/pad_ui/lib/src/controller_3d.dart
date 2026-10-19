@@ -594,7 +594,7 @@ class _Controller3DPainter extends CustomPainter {
             text: TextSpan(
               text: part.label,
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: PadType.body,
                 fontSize: (0.072 * fit.scale * persp * part.labelScale)
                     .clamp(7.0, 30.0),
                 fontWeight: FontWeight.w800,

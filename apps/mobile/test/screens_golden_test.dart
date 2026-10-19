@@ -42,9 +42,9 @@ void main() {
 
     const root = '../../packages/pad_ui/assets/fonts';
     for (final entry in {
-      'Inter': ['Inter-Regular', 'Inter-Medium', 'Inter-SemiBold', 'Inter-Bold'],
-      'InterDisplay': ['InterDisplay-SemiBold', 'InterDisplay-Bold'],
-      'JetBrainsMono': ['JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'],
+      'packages/pad_ui/Inter': ['Inter-Regular', 'Inter-Medium', 'Inter-SemiBold', 'Inter-Bold'],
+      'packages/pad_ui/InterDisplay': ['InterDisplay-SemiBold', 'InterDisplay-Bold'],
+      'packages/pad_ui/JetBrainsMono': ['JetBrainsMono-Regular', 'JetBrainsMono-SemiBold'],
     }.entries) {
       final loader = FontLoader(entry.key);
       for (final file in entry.value) {

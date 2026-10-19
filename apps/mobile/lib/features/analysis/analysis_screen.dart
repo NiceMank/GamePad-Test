@@ -250,11 +250,11 @@ class _PollingTab extends StatelessWidget {
                     text: TextSpan(children: [
                       TextSpan(
                         text: m.hz.toStringAsFixed(0),
-                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 34, fontWeight: FontWeight.w900, color: c.text),
+                        style: TextStyle(fontFamily: PadType.mono, fontSize: 34, fontWeight: FontWeight.w900, color: c.text),
                       ),
                       TextSpan(
                         text: ' Hz',
-                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 13, color: c.cyan, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontFamily: PadType.mono, fontSize: 13, color: c.cyan, fontWeight: FontWeight.w700),
                       ),
                     ]),
                   ),
@@ -295,7 +295,7 @@ class _PollingTab extends StatelessWidget {
                 children: [
                   Text('Distribution des intervalles', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.text)),
                   const Spacer(),
-                  Text('n = ${m.samples}', style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, color: c.muted)),
+                  Text('n = ${m.samples}', style: TextStyle(fontFamily: PadType.mono, fontSize: 9.5, color: c.muted)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -396,7 +396,7 @@ class _HealthTab extends StatelessWidget {
                       child: Text(
                         '${component.score.round()}/${component.max.round()}',
                         textAlign: TextAlign.right,
-                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, fontWeight: FontWeight.w700, color: c.text),
+                        style: TextStyle(fontFamily: PadType.mono, fontSize: 9.5, fontWeight: FontWeight.w700, color: c.text),
                       ),
                     ),
                   ],

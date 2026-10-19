@@ -172,7 +172,7 @@ class _InfoRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, fontWeight: FontWeight.w700, color: c.text),
+            style: TextStyle(fontFamily: PadType.mono, fontSize: 11.5, fontWeight: FontWeight.w700, color: c.text),
           ),
         ],
       ),

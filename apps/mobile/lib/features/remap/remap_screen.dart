@@ -105,7 +105,7 @@ class RemapScreen extends StatelessWidget {
           PadCard(
             child: SelectableText(
               const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, height: 1.45, color: c.muted),
+              style: TextStyle(fontFamily: PadType.mono, fontSize: 9.5, height: 1.45, color: c.muted),
             ),
           ),
         ],
@@ -153,7 +153,7 @@ class RemapScreen extends StatelessWidget {
                           ),
                           child: Text(
                             target.name,
-                            style: TextStyle(fontSize: 11, fontFamily: 'JetBrainsMono', color: c.text),
+                            style: TextStyle(fontSize: 11, fontFamily: PadType.mono, color: c.text),
                           ),
                         ),
                       ),
@@ -185,7 +185,7 @@ class RemapScreen extends StatelessWidget {
         content: SingleChildScrollView(
           child: SelectableText(
             const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-            style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10),
+            style: const TextStyle(fontFamily: PadType.mono, fontSize: 10),
           ),
         ),
         actions: [
@@ -224,7 +224,7 @@ class _MappingChip extends StatelessWidget {
           children: [
             Text(
               source.name,
-              style: TextStyle(fontSize: 10, fontFamily: 'JetBrainsMono', color: c.muted),
+              style: TextStyle(fontSize: 10, fontFamily: PadType.mono, color: c.muted),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -232,7 +232,7 @@ class _MappingChip extends StatelessWidget {
             ),
             Text(
               target?.name ?? 'off',
-              style: TextStyle(fontSize: 10, fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w800, color: accent),
+              style: TextStyle(fontSize: 10, fontFamily: PadType.mono, fontWeight: FontWeight.w800, color: accent),
             ),
           ],
         ),
@@ -260,7 +260,7 @@ class _StickSettingsCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '${(settings.deadzone * 100).round()} %',
-                style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+                style: TextStyle(fontFamily: PadType.mono, fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
               ),
             ],
           ),
@@ -275,7 +275,7 @@ class _StickSettingsCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '×${settings.sensitivity.toStringAsFixed(2)}',
-                style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+                style: TextStyle(fontFamily: PadType.mono, fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
               ),
             ],
           ),

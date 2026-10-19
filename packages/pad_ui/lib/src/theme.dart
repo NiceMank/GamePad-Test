@@ -141,9 +141,12 @@ extension PadColorsContext on BuildContext {
 class PadType {
   const PadType._();
 
-  static const display = 'InterDisplay';
-  static const body = 'Inter';
-  static const mono = 'JetBrainsMono';
+  // Flutter expose les polices déclarées par un paquet sous le nom
+  // « packages/<paquet>/<famille> » : sans ce préfixe, l'application
+  // retombait silencieusement sur la police par défaut du système.
+  static const display = 'packages/pad_ui/InterDisplay';
+  static const body = 'packages/pad_ui/Inter';
+  static const mono = 'packages/pad_ui/JetBrainsMono';
 }
 
 /// Thème PadLab.

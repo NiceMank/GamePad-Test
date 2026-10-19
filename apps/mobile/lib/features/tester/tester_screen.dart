@@ -283,7 +283,7 @@ class _AxisPill extends StatelessWidget {
           const SizedBox(width: 7),
           Text(
             '$label  ${x.toStringAsFixed(2)} / ${y.toStringAsFixed(2)}',
-            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, fontWeight: FontWeight.w700, color: c.text),
+            style: TextStyle(fontFamily: PadType.mono, fontSize: 10, fontWeight: FontWeight.w700, color: c.text),
           ),
         ],
       ),
@@ -314,7 +314,7 @@ class _ButtonChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          fontFamily: 'JetBrainsMono',
+          fontFamily: PadType.mono,
           color: pressed ? c.cyan : c.muted,
         ),
       ),
@@ -341,24 +341,24 @@ class _EventRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 34,
-            child: Text(stamp, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9, color: c.muted)),
+            child: Text(stamp, style: TextStyle(fontFamily: PadType.mono, fontSize: 9, color: c.muted)),
           ),
           SizedBox(
             width: 26,
             child: Text(
               event.button?.glyph(layout) ?? '',
-              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, fontWeight: FontWeight.w800, color: isDown ? c.cyan : c.magenta),
+              style: TextStyle(fontFamily: PadType.mono, fontSize: 10, fontWeight: FontWeight.w800, color: isDown ? c.cyan : c.magenta),
             ),
           ),
           Expanded(
             child: Text(
               '${event.button?.name ?? ''} · ${isDown ? 'down' : 'up'}',
-              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, color: c.text),
+              style: TextStyle(fontFamily: PadType.mono, fontSize: 10, color: c.text),
             ),
           ),
           Text(
             isDown ? '1' : '0',
-            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, color: isDown ? c.green : c.muted),
+            style: TextStyle(fontFamily: PadType.mono, fontSize: 10, color: isDown ? c.green : c.muted),
           ),
         ],
       ),
@@ -391,7 +391,7 @@ class _RawCell extends StatelessWidget {
             value.round().toString(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+            style: TextStyle(fontFamily: PadType.mono, fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
           ),
         ],
       ),

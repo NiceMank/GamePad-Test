@@ -514,7 +514,7 @@ class PadHeader extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontFamily: 'InterDisplay',
+                    fontFamily: PadType.display,
                     fontSize: 29,
                     height: 1.02,
                     fontWeight: FontWeight.w700,

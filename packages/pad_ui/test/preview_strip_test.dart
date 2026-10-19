@@ -18,7 +18,8 @@ void main() {
 
   setUpAll(() async {
     // Sans police chargée, les libellés sortent en rectangles.
-    final loader = FontLoader('Inter');
+    // Même nom que celui exposé par le paquet à l'exécution.
+    final loader = FontLoader('packages/pad_ui/Inter');
     for (final file in ['Inter-Regular', 'Inter-SemiBold']) {
       final bytes = File('assets/fonts/$file.ttf').readAsBytesSync();
       loader.addFont(Future.value(ByteData.view(bytes.buffer)));
@@ -62,7 +63,7 @@ void main() {
         text: TextSpan(
           text: '${f.family.label} · ${(f.yaw * 180 / math.pi).round()}°',
           style: const TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: 'packages/pad_ui/Inter',
             fontSize: 11,
             color: Color(0xFF8B9099),
           ),

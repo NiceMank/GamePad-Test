@@ -240,7 +240,7 @@ class _LinkScreenState extends State<LinkScreen> {
           PadCard(
             child: SelectableText(
               hex,
-              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10.5, height: 1.6, color: c.muted),
+              style: TextStyle(fontFamily: PadType.mono, fontSize: 10.5, height: 1.6, color: c.muted),
             ),
           ),
           const SizedBox(height: 8),
@@ -299,7 +299,7 @@ class _Field extends StatelessWidget {
           enabled: enabled,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 13, fontWeight: FontWeight.w700, color: c.text),
+          style: TextStyle(fontFamily: PadType.mono, fontSize: 13, fontWeight: FontWeight.w700, color: c.text),
           decoration: InputDecoration(
             hintText: hint,
             isDense: true,
@@ -344,7 +344,7 @@ class _Row extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontFamily: 'JetBrainsMono',
+              fontFamily: PadType.mono,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               color: color ?? c.text,
@@ -405,7 +405,7 @@ class _TransportCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             latency,
-            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: color),
+            style: TextStyle(fontFamily: PadType.mono, fontSize: 11, fontWeight: FontWeight.w800, color: color),
           ),
         ],
       ),

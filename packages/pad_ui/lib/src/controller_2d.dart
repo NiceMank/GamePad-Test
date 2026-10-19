@@ -351,7 +351,7 @@ class TriggerBar extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontFamily: 'JetBrainsMono',
+              fontFamily: PadType.mono,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: c.muted,
@@ -385,7 +385,7 @@ class TriggerBar extends StatelessWidget {
             '${(value * 100).round()} %',
             textAlign: TextAlign.right,
             style: TextStyle(
-              fontFamily: 'JetBrainsMono',
+              fontFamily: PadType.mono,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: c.text,
