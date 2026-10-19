@@ -21,13 +21,13 @@ class BatteryScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Batterie', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: c.text)),
-          const SizedBox(height: 2),
+          const PadHeader(eyebrow: 'Énergie', title: 'Batterie'),
+          const SizedBox(height: 4),
           Text(
             session.device?.name ?? 'Manette',
-            style: TextStyle(fontSize: 10.5, color: c.muted),
+            style: TextStyle(fontSize: 12, color: c.muted),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Center(
             child: BatteryRing(
               percent: percent,

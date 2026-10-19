@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Couleurs sémantiques, avec deux jeux complets (sombre / clair).
+/// Couleurs sémantiques. Deux jeux complets, pensés comme un produit
+/// matériel : fonds neutres, un seul accent, aucune couleur décorative.
 @immutable
 class PadColors extends ThemeExtension<PadColors> {
   const PadColors({
@@ -35,39 +36,44 @@ class PadColors extends ThemeExtension<PadColors> {
   final List<Color> gradient;
   final bool isDark;
 
+  /// Accent principal : un seul, réservé aux données vivantes.
+  Color get accent => cyan;
+
   static const dark = PadColors(
-    bg: Color(0xFF05070D),
-    surface: Color(0xFF0B101C),
-    card: Color(0xFF101828),
-    line: Color(0xFF1D2940),
-    text: Color(0xFFE9F1FF),
-    muted: Color(0xFF8494AC),
-    cyan: Color(0xFF22E6FF),
-    blue: Color(0xFF4C7DFF),
-    magenta: Color(0xFFFF3D9A),
-    green: Color(0xFF46F0A0),
-    amber: Color(0xFFFFC857),
-    danger: Color(0xFFFF5C6C),
-    gradient: [Color(0xFF22E6FF), Color(0xFF4C7DFF)],
+    bg: Color(0xFF0A0B0D),
+    surface: Color(0xFF121316),
+    card: Color(0xFF17191D),
+    line: Color(0xFF26282E),
+    text: Color(0xFFF2F3F5),
+    muted: Color(0xFF8B9099),
+    cyan: Color(0xFF3DDCC0),
+    blue: Color(0xFF6C9BFF),
+    magenta: Color(0xFFFF7BA8),
+    green: Color(0xFF57D68C),
+    amber: Color(0xFFFFC15E),
+    danger: Color(0xFFFF6B6B),
+    gradient: [Color(0xFF3DDCC0), Color(0xFF6C9BFF)],
     isDark: true,
   );
 
   static const light = PadColors(
-    bg: Color(0xFFF8FBFE),
+    bg: Color(0xFFF4F4F1),
     surface: Color(0xFFFFFFFF),
     card: Color(0xFFFFFFFF),
-    line: Color(0xFFE2EAF4),
-    text: Color(0xFF0E1929),
-    muted: Color(0xFF65778E),
-    cyan: Color(0xFF0A8AA6),
-    blue: Color(0xFF2F5FE0),
-    magenta: Color(0xFFD31C67),
-    green: Color(0xFF0B8C5E),
-    amber: Color(0xFFA87300),
-    danger: Color(0xFFC9343F),
-    gradient: [Color(0xFF0A8AA6), Color(0xFF2F5FE0)],
+    line: Color(0xFFE4E4DE),
+    text: Color(0xFF15171A),
+    muted: Color(0xFF6E7480),
+    cyan: Color(0xFF0E9C88),
+    blue: Color(0xFF3A62D6),
+    magenta: Color(0xFFC22D62),
+    green: Color(0xFF1B8A55),
+    amber: Color(0xFF9A6A00),
+    danger: Color(0xFFB33A3A),
+    gradient: [Color(0xFF0E9C88), Color(0xFF3A62D6)],
     isDark: false,
   );
+
+  static PadColors of(Brightness b) => b == Brightness.dark ? dark : light;
 
   @override
   PadColors copyWith({
@@ -131,96 +137,140 @@ extension PadColorsContext on BuildContext {
   PadColors get colors => Theme.of(this).extension<PadColors>() ?? PadColors.dark;
 }
 
-/// Thème PadLab complet. Le mode suit le système par défaut.
+/// Typographie : Inter pour l'interface, JetBrains Mono pour les mesures.
+class PadType {
+  const PadType._();
+
+  static const display = 'InterDisplay';
+  static const body = 'Inter';
+  static const mono = 'JetBrainsMono';
+}
+
+/// Thème PadLab.
 class PadTheme {
   const PadTheme._();
 
   static ThemeData build(Brightness brightness) {
-    final c = brightness == Brightness.dark ? PadColors.dark : PadColors.light;
+    final c = PadColors.of(brightness);
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: c.bg,
+      fontFamily: PadType.body,
       colorScheme: ColorScheme.fromSeed(
         seedColor: c.cyan,
         brightness: brightness,
         primary: c.cyan,
-        secondary: c.magenta,
+        secondary: c.blue,
         surface: c.card,
         error: c.danger,
       ),
     );
 
+    TextStyle t(double size, FontWeight w, {double height = 1.25, double tracking = -0.2, Color? color}) =>
+        TextStyle(
+          fontFamily: PadType.body,
+          fontSize: size,
+          fontWeight: w,
+          height: height,
+          letterSpacing: tracking,
+          color: color ?? c.text,
+        );
+
     return base.copyWith(
       extensions: [c],
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: c.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         foregroundColor: c.text,
         titleTextStyle: TextStyle(
+          fontFamily: PadType.display,
           color: c.text,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.2,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.4,
         ),
       ),
-      textTheme: base.textTheme.apply(
-        bodyColor: c.text,
-        displayColor: c.text,
+      textTheme: base.textTheme.copyWith(
+        displaySmall: t(30, FontWeight.w600, height: 1.08, tracking: -1.0),
+        headlineMedium: t(24, FontWeight.w600, height: 1.15, tracking: -0.8),
+        headlineSmall: t(20, FontWeight.w600, height: 1.2, tracking: -0.5),
+        titleLarge: t(17, FontWeight.w600, tracking: -0.35),
+        titleMedium: t(14.5, FontWeight.w600, tracking: -0.15),
+        titleSmall: t(12.5, FontWeight.w600, tracking: -0.1),
+        bodyLarge: t(14, FontWeight.w400, height: 1.5, tracking: -0.05),
+        bodyMedium: t(12.5, FontWeight.w400, height: 1.5, tracking: 0),
+        bodySmall: t(11, FontWeight.w400, height: 1.45, tracking: 0.05, color: c.muted),
+        labelLarge: t(13, FontWeight.w600, tracking: 0),
+        labelSmall: t(9.5, FontWeight.w600, tracking: 0.6, color: c.muted),
       ),
       cardTheme: CardThemeData(
         color: c.card,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: c.line),
         ),
       ),
-      dividerTheme: DividerThemeData(color: c.line, thickness: 1),
+      dividerTheme: DividerThemeData(color: c.line, thickness: 1, space: 1),
       sliderTheme: SliderThemeData(
         activeTrackColor: c.cyan,
         inactiveTrackColor: c.line,
-        thumbColor: Colors.white,
-        overlayColor: c.cyan.withValues(alpha: 0.12),
-        trackHeight: 8,
+        thumbColor: c.isDark ? Colors.white : c.text,
+        overlayColor: c.cyan.withValues(alpha: 0.10),
+        trackHeight: 6,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? Colors.white : c.muted,
+          (s) => s.contains(WidgetState.selected)
+              ? (c.isDark ? const Color(0xFF0A0B0D) : Colors.white)
+              : c.muted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? c.cyan : c.line,
         ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: c.card,
-        contentTextStyle: TextStyle(color: c.text),
+        backgroundColor: c.isDark ? const Color(0xFF23262C) : const Color(0xFF23262C),
+        contentTextStyle: const TextStyle(fontFamily: PadType.body, color: Colors.white, fontSize: 12.5),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      textSelectionTheme: TextSelectionThemeData(cursorColor: c.cyan, selectionColor: c.cyan.withValues(alpha: 0.25)),
     );
   }
 }
 
-/// Styles de texte partagés.
+/// Styles de texte partagés (raccourcis d'usage courant).
 class PadText {
   const PadText._();
 
   static const mono = TextStyle(
-    fontFamily: 'monospace',
+    fontFamily: PadType.mono,
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
+  /// Petite étiquette de section : discrète, sans effet « tech ».
   static TextStyle eyebrow(BuildContext context) => TextStyle(
+    fontFamily: PadType.body,
     fontSize: 11,
-    letterSpacing: 1.6,
-    fontWeight: FontWeight.w800,
+    letterSpacing: 0.4,
+    fontWeight: FontWeight.w600,
     color: context.colors.muted,
   );
 
-  static TextStyle value(BuildContext context, {double size = 20}) => mono.copyWith(
+  /// Chiffre mis en avant.
+  static TextStyle value(BuildContext context, {double size = 22}) => TextStyle(
+    fontFamily: PadType.mono,
     fontSize: size,
-    fontWeight: FontWeight.w800,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.6,
+    fontFeatures: const [FontFeature.tabularFigures()],
     color: context.colors.text,
   );
 }

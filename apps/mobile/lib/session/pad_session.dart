@@ -54,6 +54,30 @@ class PadSession extends ChangeNotifier {
   /// Message d'erreur du dernier essai matériel.
   String? hardwareError;
 
+  /// Boutons « enfoncés » depuis l'écran (tactile), en attente de relâchement.
+  /// Ils traversent exactement le même chemin qu'un appui matériel : remap,
+  /// journal, analyseurs, notifications.
+  final Map<PadButton, int> _injected = {};
+
+  /// Simule un appui bref sur un bouton depuis l'interface.
+  ///
+  /// Le retour visuel est celui d'un vrai appui : l'état passe par
+  /// [ingestRaw], donc la grille de boutons, le modèle 3D, le journal et les
+  /// compteurs réagissent de la même façon.
+  void tapButton(PadButton button, {Duration hold = const Duration(milliseconds: 170)}) {
+    _injected[button] = (_injected[button] ?? 0) + 1;
+    ingestRaw(rawState);
+    Timer(hold, () {
+      final left = (_injected[button] ?? 1) - 1;
+      if (left <= 0) {
+        _injected.remove(button);
+      } else {
+        _injected[button] = left;
+      }
+      ingestRaw(rawState);
+    });
+  }
+
   /// Vrai quand des données matérielles attendent un rafraîchissement UI.
   bool hardwareDirty = false;
 
@@ -319,7 +343,11 @@ class PadSession extends ChangeNotifier {
     final timestampUs = raw.timestampUs;
     final previous = state.pressed;
     rawState = raw;
-    state = remapEngine.apply(raw, profile, nowUs: timestampUs);
+    final remapped = remapEngine.apply(raw, profile, nowUs: timestampUs);
+    // Les appuis tactiles se superposent à l'état remappé, sans le remplacer.
+    state = _injected.isEmpty
+        ? remapped
+        : remapped.copyWith(pressed: {...remapped.pressed, ..._injected.keys});
 
     for (final b in state.pressed.difference(previous)) {
       _logEvent(
@@ -435,8 +463,13 @@ class PadSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    _injected.clear();
     _stopTimer();
     link.stop();
+    // La source matérielle garde des minuteurs (rendu 60 Hz, batterie) :
+    // il faut les arrêter, sinon l'application ne se libère jamais.
+    unawaited(hardware?.dispose());
+    hardware = null;
     super.dispose();
   }
 }

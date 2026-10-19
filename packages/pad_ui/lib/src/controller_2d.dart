@@ -323,65 +323,7 @@ class Controller2DPainter extends CustomPainter {
       old.state != state || old.layout != layout || old.colors != colors;
 }
 
-/// Petite vignette de manette, pour les listes et les cartes.
-class ControllerGlyph extends StatelessWidget {
-  const ControllerGlyph({super.key, this.size = 44, this.color});
 
-  final double size;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = color ?? context.colors.cyan;
-    return SizedBox(
-      width: size,
-      height: size * 0.8,
-      child: CustomPaint(painter: _GlyphPainter(c)),
-    );
-  }
-}
-
-class _GlyphPainter extends CustomPainter {
-  _GlyphPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scale = size.width / 60.0;
-    canvas.save();
-    canvas.scale(scale, scale);
-    final body = Path()
-      ..moveTo(18, 7)
-      ..lineTo(42, 7)
-      ..cubicTo(48, 7, 52, 11, 53, 18)
-      ..cubicTo(53.6, 23, 52, 27, 55, 32)
-      ..cubicTo(57, 36, 56, 41, 52, 42)
-      ..cubicTo(48, 43, 44, 39, 42, 36)
-      ..lineTo(39, 32)
-      ..lineTo(21, 32)
-      ..lineTo(18, 36)
-      ..cubicTo(16, 39, 12, 43, 8, 42)
-      ..cubicTo(4, 41, 3, 36, 5, 32)
-      ..cubicTo(8, 27, 6.4, 23, 7, 18)
-      ..cubicTo(8, 11, 12, 7, 18, 7)
-      ..close();
-    canvas.drawPath(body, Paint()..color = color.withValues(alpha: 0.16));
-    canvas.drawPath(
-      body,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = color.withValues(alpha: 0.7),
-    );
-    canvas.drawCircle(const Offset(19, 26), 4.6, Paint()..color = color.withValues(alpha: 0.85));
-    canvas.drawCircle(const Offset(41, 26), 4.6, Paint()..color = color.withValues(alpha: 0.55));
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_GlyphPainter old) => old.color != color;
-}
 
 /// Barre de gâchette analogique.
 class TriggerBar extends StatelessWidget {
@@ -409,7 +351,7 @@ class TriggerBar extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: 'JetBrainsMono',
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: c.muted,
@@ -443,7 +385,7 @@ class TriggerBar extends StatelessWidget {
             '${(value * 100).round()} %',
             textAlign: TextAlign.right,
             style: TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: 'JetBrainsMono',
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: c.text,

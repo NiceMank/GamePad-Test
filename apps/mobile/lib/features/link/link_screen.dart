@@ -88,6 +88,13 @@ class _LinkScreenState extends State<LinkScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
         children: [
+          const PadHeader(
+            eyebrow: 'Passerelle PC',
+            title: 'Manette Xbox virtuelle',
+            subtitle: 'PadLab Bridge expose la manette comme une manette Xbox '
+                'pour tous les jeux Windows, sans pilote supplémentaire côté mobile.',
+          ),
+          const SizedBox(height: 12),
           PadCard(
             accent: c.cyan.withValues(alpha: 0.35),
             child: Column(
@@ -233,7 +240,7 @@ class _LinkScreenState extends State<LinkScreen> {
           PadCard(
             child: SelectableText(
               hex,
-              style: TextStyle(fontFamily: 'monospace', fontSize: 10.5, height: 1.6, color: c.muted),
+              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10.5, height: 1.6, color: c.muted),
             ),
           ),
           const SizedBox(height: 8),
@@ -292,7 +299,7 @@ class _Field extends StatelessWidget {
           enabled: enabled,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          style: TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w700, color: c.text),
+          style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 13, fontWeight: FontWeight.w700, color: c.text),
           decoration: InputDecoration(
             hintText: hint,
             isDense: true,
@@ -337,7 +344,7 @@ class _Row extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: 'JetBrainsMono',
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               color: color ?? c.text,
@@ -398,7 +405,7 @@ class _TransportCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             latency,
-            style: TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w800, color: color),
+            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: color),
           ),
         ],
       ),

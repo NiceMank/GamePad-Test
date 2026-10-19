@@ -18,7 +18,16 @@ class RemapScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: c.bg,
       appBar: AppBar(
-        title: const Text('Remapping'),
+        title: Text(
+          'Remapping',
+          style: TextStyle(
+            fontFamily: PadType.display,
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.6,
+            color: c.text,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Exporter le profil',
@@ -31,9 +40,9 @@ class RemapScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
         children: [
           Text(
-            'Le profil s\'applique en direct dans l\'app. Sur PC, PadLab Link '
-            'l\'applique à tous les jeux via la manette Xbox virtuelle.',
-            style: TextStyle(fontSize: 10.5, height: 1.5, color: c.muted),
+            'Les correspondances s\'appliquent en direct dans l\'app. Sur PC, '
+            'PadLab Link les étend à tous les jeux via la manette Xbox virtuelle.',
+            style: TextStyle(fontSize: 11, height: 1.5, color: c.muted),
           ),
           const SizedBox(height: 14),
           const SectionLabel('Boutons'),
@@ -96,7 +105,7 @@ class RemapScreen extends StatelessWidget {
           PadCard(
             child: SelectableText(
               const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 9.5, height: 1.45, color: c.muted),
+              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, height: 1.45, color: c.muted),
             ),
           ),
         ],
@@ -144,7 +153,7 @@ class RemapScreen extends StatelessWidget {
                           ),
                           child: Text(
                             target.name,
-                            style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: c.text),
+                            style: TextStyle(fontSize: 11, fontFamily: 'JetBrainsMono', color: c.text),
                           ),
                         ),
                       ),
@@ -176,7 +185,7 @@ class RemapScreen extends StatelessWidget {
         content: SingleChildScrollView(
           child: SelectableText(
             const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+            style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10),
           ),
         ),
         actions: [
@@ -215,7 +224,7 @@ class _MappingChip extends StatelessWidget {
           children: [
             Text(
               source.name,
-              style: TextStyle(fontSize: 10, fontFamily: 'monospace', color: c.muted),
+              style: TextStyle(fontSize: 10, fontFamily: 'JetBrainsMono', color: c.muted),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -223,7 +232,7 @@ class _MappingChip extends StatelessWidget {
             ),
             Text(
               target?.name ?? 'off',
-              style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.w800, color: accent),
+              style: TextStyle(fontSize: 10, fontFamily: 'JetBrainsMono', fontWeight: FontWeight.w800, color: accent),
             ),
           ],
         ),
@@ -251,7 +260,7 @@ class _StickSettingsCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '${(settings.deadzone * 100).round()} %',
-                style: TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+                style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
               ),
             ],
           ),
@@ -266,7 +275,7 @@ class _StickSettingsCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '×${settings.sensitivity.toStringAsFixed(2)}',
-                style: TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+                style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
               ),
             ],
           ),

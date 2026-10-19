@@ -27,15 +27,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Analyse', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: c.text)),
-          const SizedBox(height: 2),
+          const PadHeader(
+            eyebrow: 'Diagnostic',
+            title: 'Analyse des entrées',
+          ),
+          const SizedBox(height: 6),
           Text(
             session.analyzing
-                ? 'Analyse en cours · ${(_analysisDuration - session.analysisElapsed).inSeconds.clamp(0, 30)} s'
-                : '${session.leftStick.sampleCount} échantillons · ${(session.leftStick.sampleCount * 0.016).toStringAsFixed(0)} s',
-            style: TextStyle(fontSize: 10.5, color: c.muted),
+                ? 'Mesure en cours · ${(_analysisDuration - session.analysisElapsed).inSeconds.clamp(0, 30)} s restantes'
+                : '${session.leftStick.sampleCount} échantillons · ${(session.leftStick.sampleCount * 0.016).toStringAsFixed(0)} s de capture',
+            style: TextStyle(fontSize: 11.5, color: c.muted),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SegmentedTabs(labels: _tabs, index: _tab, onChanged: (i) => setState(() => _tab = i)),
           const SizedBox(height: 12),
           if (_tab == 0) _SticksTab(session: session),
@@ -247,11 +250,11 @@ class _PollingTab extends StatelessWidget {
                     text: TextSpan(children: [
                       TextSpan(
                         text: m.hz.toStringAsFixed(0),
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 34, fontWeight: FontWeight.w900, color: c.text),
+                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 34, fontWeight: FontWeight.w900, color: c.text),
                       ),
                       TextSpan(
                         text: ' Hz',
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: c.cyan, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 13, color: c.cyan, fontWeight: FontWeight.w700),
                       ),
                     ]),
                   ),
@@ -292,7 +295,7 @@ class _PollingTab extends StatelessWidget {
                 children: [
                   Text('Distribution des intervalles', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.text)),
                   const Spacer(),
-                  Text('n = ${m.samples}', style: TextStyle(fontFamily: 'monospace', fontSize: 9.5, color: c.muted)),
+                  Text('n = ${m.samples}', style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, color: c.muted)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -393,7 +396,7 @@ class _HealthTab extends StatelessWidget {
                       child: Text(
                         '${component.score.round()}/${component.max.round()}',
                         textAlign: TextAlign.right,
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 9.5, fontWeight: FontWeight.w700, color: c.text),
+                        style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9.5, fontWeight: FontWeight.w700, color: c.text),
                       ),
                     ),
                   ],
@@ -406,19 +409,14 @@ class _HealthTab extends StatelessWidget {
         const SizedBox(height: 12),
         for (final issue in report.issues.take(6))
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 2),
             child: IssueTile(
-              icon: switch (issue.severity) {
-                IssueSeverity.critical => Icons.error_rounded,
-                IssueSeverity.warning => Icons.warning_amber_rounded,
-                IssueSeverity.info => Icons.info_outline_rounded,
-              },
               title: issue.title,
               detail: issue.detail,
-              color: switch (issue.severity) {
-                IssueSeverity.critical => c.danger,
-                IssueSeverity.warning => c.amber,
-                IssueSeverity.info => c.cyan,
+              severity: switch (issue.severity) {
+                IssueSeverity.critical => PadIssueLevel.critical,
+                IssueSeverity.warning => PadIssueLevel.warning,
+                IssueSeverity.info => PadIssueLevel.ok,
               },
             ),
           ),

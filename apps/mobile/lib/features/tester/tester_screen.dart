@@ -24,6 +24,7 @@ class _TesterScreenState extends State<TesterScreen> {
   static const _layoutLabels = ['Android', 'PS', 'Xbox', 'Switch', 'Univ.'];
 
   int _layoutIndex = 1;
+  PadButton? _lastTapped;
   double _strong = 0.8;
   double _weak = 0.5;
 
@@ -57,35 +58,20 @@ class _TesterScreenState extends State<TesterScreen> {
     final c = context.colors;
     final state = session.state;
 
+    final family = ControllerFamily.detect(session.device);
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text('Test d\'entrées', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: c.text)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: c.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: c.green.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  'LIVE',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: c.green),
-                ),
-              ),
-            ],
+          PadHeader(
+            eyebrow: 'Manette connectée',
+            title: 'Test d\'entrées',
+            subtitle: session.device?.name ?? 'Manette',
+            trailing: _LivePill(active: state.hasInput),
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${session.device?.name ?? 'Manette'} · ${session.simulate ? 'simulation' : 'matériel'}',
-            style: TextStyle(fontSize: 10.5, color: c.muted),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SegmentedTabs(
             labels: _layoutLabels,
             index: _layoutIndex,
@@ -93,10 +79,29 @@ class _TesterScreenState extends State<TesterScreen> {
             onChanged: (i) => setState(() => _layoutIndex = i),
           ),
           const SizedBox(height: 10),
-          PadCard(
-            padding: const EdgeInsets.all(6),
-            child: Controller2D(state: state, layout: _layouts[_layoutIndex]),
+          SizedBox(
+            height: 286,
+            child: Controller3D(
+              state: state,
+              family: family,
+              layout: _layouts[_layoutIndex],
+              height: 286,
+              onButtonTap: (button) {
+                // Même chemin qu'un appui réel : l'état, le journal et les
+                // compteurs réagissent, pas seulement le modèle.
+                session.tapButton(button);
+                setState(() => _lastTapped = button);
+              },
+            ),
           ),
+          if (_lastTapped != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Dernier appui sur le modèle : ${_lastTapped!.name.toUpperCase()}',
+                style: TextStyle(fontSize: 10, color: c.muted),
+              ),
+            ),
           const SizedBox(height: 12),
           TriggerBar(label: 'L2', value: state.axis(PadAxis.leftTrigger)),
           const SizedBox(height: 6),
@@ -278,7 +283,7 @@ class _AxisPill extends StatelessWidget {
           const SizedBox(width: 7),
           Text(
             '$label  ${x.toStringAsFixed(2)} / ${y.toStringAsFixed(2)}',
-            style: TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.w700, color: c.text),
+            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, fontWeight: FontWeight.w700, color: c.text),
           ),
         ],
       ),
@@ -309,7 +314,7 @@ class _ButtonChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          fontFamily: 'monospace',
+          fontFamily: 'JetBrainsMono',
           color: pressed ? c.cyan : c.muted,
         ),
       ),
@@ -336,24 +341,24 @@ class _EventRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 34,
-            child: Text(stamp, style: TextStyle(fontFamily: 'monospace', fontSize: 9, color: c.muted)),
+            child: Text(stamp, style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 9, color: c.muted)),
           ),
           SizedBox(
             width: 26,
             child: Text(
               event.button?.glyph(layout) ?? '',
-              style: TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.w800, color: isDown ? c.cyan : c.magenta),
+              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, fontWeight: FontWeight.w800, color: isDown ? c.cyan : c.magenta),
             ),
           ),
           Expanded(
             child: Text(
               '${event.button?.name ?? ''} · ${isDown ? 'down' : 'up'}',
-              style: TextStyle(fontFamily: 'monospace', fontSize: 10, color: c.text),
+              style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, color: c.text),
             ),
           ),
           Text(
             isDown ? '1' : '0',
-            style: TextStyle(fontFamily: 'monospace', fontSize: 10, color: isDown ? c.green : c.muted),
+            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 10, color: isDown ? c.green : c.muted),
           ),
         ],
       ),
@@ -386,7 +391,7 @@ class _RawCell extends StatelessWidget {
             value.round().toString(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
+            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11, fontWeight: FontWeight.w800, color: c.text),
           ),
         ],
       ),
@@ -466,6 +471,47 @@ class _PresetChip extends StatelessWidget {
           label,
           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.text),
         ),
+      ),
+    );
+  }
+}
+
+
+class _LivePill extends StatelessWidget {
+  const _LivePill({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final color = active ? c.green : c.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.line),
+      ),
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            active ? 'ACTIF' : 'REPOS',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

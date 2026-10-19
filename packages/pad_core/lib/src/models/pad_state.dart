@@ -29,6 +29,22 @@ class PadState {
 
   bool isPressed(PadButton button) => pressed.contains(button);
 
+  /// Intensité d'un bouton, 0..1.
+  ///
+  /// Les gâchettes analogiques renvoient leur course (utile pour allumer le
+  /// modèle 3D progressivement) ; les autres boutons valent 1 s'ils sont
+  /// enfoncés.
+  double axisForButton(PadButton button) {
+    switch (button) {
+      case PadButton.l2:
+        return axis(PadAxis.leftTrigger);
+      case PadButton.r2:
+        return axis(PadAxis.rightTrigger);
+      default:
+        return isPressed(button) ? 1 : 0;
+    }
+  }
+
   bool get hasInput =>
       pressed.isNotEmpty ||
       axes.values.any((v) => v.abs() > 0.02);

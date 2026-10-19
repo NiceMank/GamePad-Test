@@ -11,6 +11,7 @@ export 'src/analysis/trigger_analyzer.dart';
 export 'src/battery/battery_estimator.dart';
 export 'src/models/battery.dart';
 export 'src/models/pad_axis.dart';
+export 'src/models/controller_family.dart';
 export 'src/models/pad_button.dart';
 export 'src/models/pad_device.dart';
 export 'src/models/pad_state.dart';

@@ -74,9 +74,6 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    final session = PadScope.of(context);
-
     final screens = [
       HomeScreen(onNavigate: _go),
       const TesterScreen(),
@@ -85,75 +82,98 @@ class _HomeShellState extends State<HomeShell> {
       SettingsScreen(themeMode: widget.themeMode, onThemeMode: widget.onThemeMode),
     ];
 
+    final c = context.colors;
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
         bottom: false,
-        child: IndexedStack(index: _index, children: screens),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: c.isDark ? const Color(0xFF070C15) : Colors.white,
-          border: Border(top: BorderSide(color: c.line)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 62,
-            child: Row(
-              children: [
-                _NavItem(icon: Icons.home_rounded, label: 'Accueil', selected: _index == 0, onTap: () => _go(0)),
-                _NavItem(icon: Icons.sports_esports_rounded, label: 'Test', selected: _index == 1, onTap: () => _go(1)),
-                _NavItem(icon: Icons.insights_rounded, label: 'Analyse', selected: _index == 2, onTap: () => _go(2)),
-                _NavItem(icon: Icons.battery_charging_full_rounded, label: 'Batterie', selected: _index == 3, onTap: () => _go(3)),
-                _NavItem(icon: Icons.settings_rounded, label: 'Réglages', selected: _index == 4, onTap: () => _go(4)),
-              ],
-            ),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 76),
+          child: IndexedStack(index: _index, children: screens),
         ),
       ),
-      floatingActionButton: session.analyzing
-          ? null
-          : null,
+      extendBody: true,
+      bottomNavigationBar: _FloatingNav(index: _index, onTap: _go),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
 
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+
+/// Barre de navigation flottante : une pilule sombre, pas de bandeau plein.
+class _FloatingNav extends StatelessWidget {
+  const _FloatingNav({required this.index, required this.onTap});
+
+  final int index;
+  final ValueChanged<int> onTap;
+
+  static const _items = [
+    (Icons.home_rounded, 'Accueil'),
+    (Icons.sports_esports_rounded, 'Test'),
+    (Icons.insights_rounded, 'Analyse'),
+    (Icons.battery_5_bar_rounded, 'Batterie'),
+    (Icons.settings_rounded, 'Réglages'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final color = selected ? c.cyan : (c.isDark ? const Color(0xFF5D6D85) : const Color(0xFF8798AD));
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 21, color: color),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: color,
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: c.isDark ? const Color(0xFF17191D) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: c.line),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: c.isDark ? 0.45 : 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < _items.length; i++)
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onTap(i),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: i == index ? c.text.withValues(alpha: 0.08) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Icon(
+                            _items[i].$1,
+                            size: 19,
+                            color: i == index ? c.text : c.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _items[i].$2,
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: i == index ? FontWeight.w600 : FontWeight.w500,
+                            color: i == index ? c.text : c.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -17,8 +17,12 @@ class SettingsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
       children: [
-        Text('Réglages', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: c.text)),
-        const SizedBox(height: 16),
+        const PadHeader(
+          eyebrow: 'PadLab',
+          title: 'Réglages',
+          subtitle: 'Apparence, connexion, profil du modèle',
+        ),
+        const SizedBox(height: 14),
         const SectionLabel('Apparence'),
         PadCard(
           child: Column(
@@ -168,7 +172,7 @@ class _InfoRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontFamily: 'monospace', fontSize: 11.5, fontWeight: FontWeight.w700, color: c.text),
+            style: TextStyle(fontFamily: 'JetBrainsMono', fontSize: 11.5, fontWeight: FontWeight.w700, color: c.text),
           ),
         ],
       ),

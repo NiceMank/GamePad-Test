@@ -2,55 +2,83 @@ import 'package:flutter/material.dart';
 
 import 'theme.dart';
 
+/// Surface de base : carte mate, filet fin, ombre très douce.
+///
+/// Pas de bordure lumineuse ni de dégradé : sur un écran de mesure, le
+/// contenu doit primer sur le décor.
 class PadCard extends StatelessWidget {
   const PadCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.onTap,
     this.accent,
+    this.onTap,
+    this.radius = 18,
   });
 
   final Widget child;
-  final EdgeInsets padding;
-  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
   final Color? accent;
+  final VoidCallback? onTap;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final border = accent ?? c.line;
-    final content = Material(
-      color: c.card,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: border),
-      ),
-      child: Padding(padding: padding, child: child),
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radius),
+      side: BorderSide(color: accent ?? c.line, width: accent == null ? 1 : 1.2),
     );
-    if (onTap == null) return content;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: content,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: c.isDark
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x0A101828),
+                  blurRadius: 16,
+                  offset: Offset(0, 6),
+                ),
+              ],
+      ),
+      child: Material(
+        color: c.card,
+        clipBehavior: Clip.antiAlias,
+        shape: shape,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
     );
   }
 }
 
+/// Titre de section : petit, en gris, jamais en majuscules criardes.
 class SectionLabel extends StatelessWidget {
-  const SectionLabel(this.text, {super.key, this.trailing});
+  const SectionLabel(this.label, {super.key, this.trailing, this.top = 0});
 
-  final String text;
+  final String label;
   final Widget? trailing;
+  final double top;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.only(top: top, bottom: 8, left: 2, right: 2),
       child: Row(
         children: [
-          Text(text.toUpperCase(), style: PadText.eyebrow(context)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+              color: c.muted,
+            ),
+          ),
           const Spacer(),
           ?trailing,
         ],
@@ -59,6 +87,117 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
+/// Bouton principal : plein, sombre en thème clair, clair en thème sombre.
+/// Un seul bouton de ce type par écran.
+class PrimaryButton extends StatelessWidget {
+  const PrimaryButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+    this.expand = true,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final enabled = onPressed != null;
+    final bg = c.isDark ? c.text : c.text;
+    final fg = c.isDark ? const Color(0xFF0A0B0D) : Colors.white;
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: Container(
+            width: expand ? double.infinity : null,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
+                    color: fg,
+                  ),
+                ),
+                if (icon != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(icon, size: 17, color: fg),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bouton secondaire : contour seul.
+class GhostButton extends StatelessWidget {
+  const GhostButton({super.key, required this.label, this.icon, this.onPressed});
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final enabled = onPressed != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: c.line),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 15, color: c.text),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: c.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tuile de mesure : label discret, valeur en mono, unité alignée.
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -79,10 +218,10 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
       decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        color: c.surface,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: c.line),
       ),
       child: Column(
@@ -96,53 +235,57 @@ class StatTile extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10, letterSpacing: 0.6, color: c.muted, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: c.muted),
                 ),
               ),
               if (badge != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: (tone ?? c.green).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: (tone ?? c.green).withValues(alpha: 0.3)),
+                    color: (tone ?? c.cyan).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     badge!,
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                      color: tone ?? c.green,
-                    ),
+                    style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: tone ?? c.cyan),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 4),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: c.text,
+                    fontFamily: PadType.mono,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.8,
+                    height: 1,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: tone ?? c.text,
                   ),
                 ),
-                if (unit != null)
-                  TextSpan(
-                    text: ' $unit',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: c.muted,
-                    ),
+              ),
+              if (unit != null) ...[
+                const SizedBox(width: 3),
+                Text(
+                  unit!,
+                  style: TextStyle(
+                    fontFamily: PadType.mono,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: c.muted,
                   ),
+                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
@@ -150,6 +293,7 @@ class StatTile extends StatelessWidget {
   }
 }
 
+/// Segments avec sélection animée, sans bordure dure.
 class SegmentedTabs extends StatelessWidget {
   const SegmentedTabs({
     super.key,
@@ -170,40 +314,36 @@ class SegmentedTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: c.isDark ? const Color(0xFF0A111D) : const Color(0xFFEFF3F9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.line),
+        color: c.surface,
+        borderRadius: BorderRadius.circular(11),
       ),
       child: Row(
         children: [
           for (var i = 0; i < labels.length; i++)
             Expanded(
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  padding: EdgeInsets.symmetric(vertical: compact ? 6 : 9),
+                  curve: Curves.easeOut,
+                  padding: EdgeInsets.symmetric(vertical: compact ? 7 : 9),
                   decoration: BoxDecoration(
-                    gradient: i == index
-                        ? LinearGradient(colors: [
-                            c.cyan.withValues(alpha: 0.18),
-                            c.blue.withValues(alpha: 0.20),
-                          ])
-                        : null,
+                    color: i == index ? (c.isDark ? const Color(0xFF2A2D34) : Colors.white) : Colors.transparent,
                     borderRadius: BorderRadius.circular(9),
-                    border: Border.all(
-                      color: i == index ? c.cyan.withValues(alpha: 0.4) : Colors.transparent,
-                    ),
+                    boxShadow: i == index && !c.isDark
+                        ? const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2))]
+                        : null,
                   ),
+                  alignment: Alignment.center,
                   child: Text(
                     labels[i],
-                    textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: compact ? 10 : 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: i == index ? c.cyan : c.muted,
+                      fontSize: compact ? 11 : 12,
+                      fontWeight: i == index ? FontWeight.w600 : FontWeight.w500,
+                      color: i == index ? c.text : c.muted,
                     ),
                   ),
                 ),
@@ -215,130 +355,184 @@ class SegmentedTabs extends StatelessWidget {
   }
 }
 
-class PrimaryButton extends StatelessWidget {
-  const PrimaryButton({
+/// Ligne de diagnostic : pastille de sévérité, libellé, valeur.
+class IssueTile extends StatelessWidget {
+  const IssueTile({
     super.key,
-    required this.label,
-    this.icon,
-    this.onPressed,
-    this.expand = true,
+    required this.title,
+    required this.detail,
+    this.severity = PadIssueLevel.ok,
   });
 
-  final String label;
-  final IconData? icon;
-  final VoidCallback? onPressed;
-  final bool expand;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final content = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: c.gradient),
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: c.cyan.withValues(alpha: 0.35),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF04121B),
-            ),
-          ),
-          if (icon != null) ...[
-            const SizedBox(width: 8),
-            Icon(icon, size: 18, color: const Color(0xFF04121B)),
-          ],
-        ],
-      ),
-    );
-    return GestureDetector(onTap: onPressed, child: content);
-  }
-}
-
-class GhostButton extends StatelessWidget {
-  const GhostButton({super.key, required this.label, this.icon, this.onPressed});
-
-  final String label;
-  final IconData? icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: c.line),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 15, color: c.muted),
-              const SizedBox(width: 7),
-            ],
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.text),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class IssueTile extends StatelessWidget {
-  const IssueTile({super.key, required this.icon, required this.title, required this.detail, required this.color});
-
-  final IconData icon;
   final String title;
   final String detail;
-  final Color color;
+  final PadIssueLevel severity;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: c.line),
-      ),
+    final color = switch (severity) {
+      PadIssueLevel.ok => c.green,
+      PadIssueLevel.warning => c.amber,
+      PadIssueLevel.critical => c.danger,
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 9),
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.text)),
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.text),
+                ),
                 const SizedBox(height: 2),
-                Text(detail, style: TextStyle(fontSize: 10.5, color: c.muted, height: 1.35)),
+                Text(
+                  detail,
+                  style: TextStyle(fontSize: 11, height: 1.45, color: c.muted),
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+enum PadIssueLevel { ok, warning, critical }
+
+/// Petit pictogramme de manette, utilisé dans les listes.
+class ControllerGlyph extends StatelessWidget {
+  const ControllerGlyph({super.key, this.size = 40, this.color});
+
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final tint = color ?? c.muted;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _GlyphPainter(tint, c.line)),
+    );
+  }
+}
+
+class _GlyphPainter extends CustomPainter {
+  _GlyphPainter(this.tint, this.line);
+
+  final Color tint;
+  final Color line;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.08, h * 0.24, w * 0.84, h * 0.46),
+      Radius.circular(h * 0.22),
+    );
+    canvas.drawRRect(body, Paint()..color = tint.withValues(alpha: 0.10));
+    canvas.drawRRect(
+      body,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = tint.withValues(alpha: 0.55),
+    );
+    canvas.drawCircle(Offset(w * 0.30, h * 0.47), w * 0.075, Paint()..color = tint.withValues(alpha: 0.75));
+    canvas.drawCircle(Offset(w * 0.70, h * 0.47), w * 0.075, Paint()..color = tint.withValues(alpha: 0.75));
+    canvas.drawLine(
+      Offset(w * 0.40, h * 0.33),
+      Offset(w * 0.60, h * 0.33),
+      Paint()
+        ..color = line
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlyphPainter old) => old.tint != tint || old.line != line;
+}
+
+/// En-tête d'écran commun : surtitre discret, titre éditorial, sous-titre.
+///
+/// Tous les onglets partagent ce rythme, sinon chaque écran ressemble à une
+/// application différente.
+class PadHeader extends StatelessWidget {
+  const PadHeader({
+    super.key,
+    this.eyebrow,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final String? eyebrow;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (eyebrow != null) ...[
+                  Text(
+                    eyebrow!.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.7,
+                      color: c.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                ],
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'InterDisplay',
+                    fontSize: 29,
+                    height: 1.02,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.9,
+                    color: c.text,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(fontSize: 12.5, height: 1.35, color: c.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) Padding(padding: const EdgeInsets.only(top: 6), child: trailing!),
         ],
       ),
     );
