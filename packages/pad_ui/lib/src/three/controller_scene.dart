@@ -52,7 +52,7 @@ class ShellPalette {
           button: const Color(0xFF3A3F49),
           buttonTop: const Color(0xFF4B515D),
           accent: const Color(0xFF35C7FF),
-          detail: Color(0xFF6C727E),
+          detail: Color(0xFF565C68),
         );
       case ControllerFamily.dualShock4:
         return const ShellPalette(
