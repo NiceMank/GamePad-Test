@@ -1,5 +1,7 @@
 # PadLab
 
+[![Build PadLab](https://github.com/NiceMank/GamePad-Test/actions/workflows/ci.yml/badge.svg)](https://github.com/NiceMank/GamePad-Test/actions/workflows/ci.yml)
+
 **Test, diagnostic et remapping de manettes** — application Flutter, Android d'abord,
 plus un relais PC qui émule une **manette Xbox 360** pour jouer avec n'importe quelle
 manette connectée au téléphone.
@@ -54,6 +56,20 @@ boucle que la réception, sans allocation, pour ne pas ajouter de latence.
 * Windows : installer [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) (pilote signé).
 * Linux : `sudo modprobe uinput` et appartenance au groupe `input` (ou `uinput`), sinon le
   backend retombe proprement en mode simulation.
+
+## Télécharger
+
+Onglet **Actions → Build PadLab → dernier run vert → Artifacts** :
+
+| Artefact | Contenu |
+|---|---|
+| `padlab-android` | `app-release.apk` (49 Mo, arm64 + armv7 + x86_64) et `app-release.aab` |
+| `padlab-link-windows` | `pclink.exe` + DLL Flutter |
+| `padlab-link-linux` | binaire `pclink` + `lib/` + `data/` |
+| `padlab-web` | build web complet (démo sans installation) |
+
+L'APK est signé avec la clé **debug** : parfait pour installer et tester,
+à remplacer par une clé de release avant publication sur le Play Store.
 
 ## Build
 
