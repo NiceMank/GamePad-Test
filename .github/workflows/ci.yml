@@ -106,6 +106,42 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
           flutter build windows --release
+      # ViGEmClient.dll n'est distribué par aucun paquet : on le compile ici
+      # pour que le dossier livré fonctionne sans manipulation.
+      - name: ViGEmClient (pilote de manette virtuelle)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $src = "$env:RUNNER_TEMP/vigemclient"
+          git clone --depth 1 https://github.com/nefarius/ViGEmClient.git $src
+          cmake -S $src -B "$src/build" -DViGEmClient_DLL=ON -A x64
+          cmake --build "$src/build" --config Release
+          $dll = Get-ChildItem -Recurse "$src/build" -Filter ViGEmClient.dll | Select-Object -First 1
+          if (-not $dll) { throw "ViGEmClient.dll introuvable apres compilation" }
+          $out = "apps/pclink/build/windows/x64/runner/Release"
+          Copy-Item $dll.FullName "$out/ViGEmClient.dll"
+          Copy-Item "$src/LICENSE" "$out/ViGEmClient-LICENSE.txt"
+          Write-Host "DLL copiee : $($dll.Length) octets"
+      - name: Notice de lancement
+        shell: pwsh
+        run: |
+          $out = "apps/pclink/build/windows/x64/runner/Release"
+          @"
+          PadLab Link — Windows
+          =====================
+
+          1. Installer une fois le pilote ViGEmBus (signe, gratuit) :
+             https://github.com/nefarius/ViGEmBus/releases
+             Redemarrage conseille apres l'installation.
+
+          2. Lancer pclink.exe (garder tous les fichiers du dossier ensemble).
+
+          3. Sur le telephone : onglet "PadLab Link", saisir l'adresse IP du PC
+             et le code a 4 chiffres affiche par le programme, puis "Diffuser".
+
+          Les jeux voient alors une manette Xbox 360 standard (XInput).
+          Sans le pilote, le programme se lance quand meme et explique l'etat.
+          "@ | Set-Content -Encoding UTF8 "$out/LISEZ-MOI.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: padlab-link-windows

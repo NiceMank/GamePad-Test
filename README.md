@@ -60,6 +60,12 @@ vérifie : `apps/mobile/test/tap_to_state_test.dart`.
 
 ## PadLab Link (PC)
 
+**La version PC est `apps/pclink`** — application Flutter desktop (Windows et Linux).
+Binaires prêts à l'emploi : [`docs/PC.md`](docs/PC.md) et la
+[release v0.2.0](https://github.com/NiceMank/GamePad-Test/releases/tag/v0.2.0)
+(`PadLab-Link-0.2.0-windows-x64.zip`, `PadLab-Link-0.2.0-linux-x64.tar.gz`).
+La CI compile aussi `ViGEmClient.dll` et le livre à côté de l'exécutable.
+
 `apps/pclink` écoute en UDP `47833` (secours TCP `47834`), vérifie le code à 4 chiffres,
 puis pousse chaque état vers une manette virtuelle :
 
