@@ -21,24 +21,24 @@ jobs:
           cache: true
       - name: Dépendances
         run: |
-          flutter pub get --directory packages/pad_core
-          flutter pub get --directory packages/pad_ui
-          flutter pub get --directory packages/pad_bridge
-          flutter pub get --directory apps/mobile
-          flutter pub get --directory apps/pclink
+          (cd packages/pad_core && flutter pub get)
+          (cd packages/pad_ui && flutter pub get)
+          (cd packages/pad_bridge && flutter pub get)
+          (cd apps/mobile && flutter pub get)
+          (cd apps/pclink && flutter pub get)
       - name: Analyse statique
         run: |
-          flutter analyze --no-pub packages/pad_core
-          flutter analyze --no-pub packages/pad_ui
-          flutter analyze --no-pub packages/pad_bridge
-          flutter analyze --no-pub apps/mobile
-          flutter analyze --no-pub apps/pclink
+          (cd packages/pad_core && flutter analyze)
+          (cd packages/pad_ui && flutter analyze)
+          (cd packages/pad_bridge && flutter analyze)
+          (cd apps/mobile && flutter analyze)
+          (cd apps/pclink && flutter analyze)
       - name: Tests unitaires
         run: |
-          flutter test --no-pub packages/pad_core
-          flutter test --no-pub packages/pad_bridge
-          flutter test --no-pub apps/mobile
-          flutter test --no-pub apps/pclink
+          (cd packages/pad_core && flutter test)
+          (cd packages/pad_bridge && flutter test)
+          (cd apps/mobile && flutter test)
+          (cd apps/pclink && flutter test)
 
   apk:
     name: APK Android
@@ -103,14 +103,6 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
           flutter build windows --release
-      - name: ViGEmClient.dll
-        working-directory: apps/pclink
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          # Client ViGEm (MIT) publié par le projet ViGEmBus.
-          $url = 'https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe'
-          Write-Host "Le pilote ViGEmBus doit être installé par l'utilisateur : $url"
       - uses: actions/upload-artifact@v4
         with:
           name: padlab-link-windows
