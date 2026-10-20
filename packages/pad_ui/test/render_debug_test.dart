@@ -11,6 +11,8 @@ void main() {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
     binding.platformDispatcher.views.first.physicalSize = const Size(900, 700);
     binding.platformDispatcher.views.first.devicePixelRatio = 2;
+    // Sans ce dossier, le test échoue sur une machine neuve (et en CI).
+    Directory('/tmp/shots').createSync(recursive: true);
 
     for (final (i, (family, yaw, pitch)) in [
       (ControllerFamily.dualSense, -0.42, 0.38),
