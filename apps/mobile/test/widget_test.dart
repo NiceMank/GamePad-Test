@@ -23,10 +23,22 @@ void main() {
     expect(darkColors.cyan, isNot(lightColors.cyan));
   });
 
-  test('la session simule des entrées et une batterie', () {
-    final session = PadSession();
+  test('la démonstration expose une manette et une batterie', () {
+    final session = PadSession(mode: SourceMode.demo);
     expect(session.device, isNotNull);
     expect(session.battery.percent, isNotNull);
+    expect(session.simulate, isTrue);
+    session.dispose();
+  });
+
+  test('le mode auto sans manette annonce la démonstration', () async {
+    // Un environnement sans pont natif (test, bureau) ne doit ni planter ni
+    // faire croire à du matériel réel.
+    final session = PadSession();
+    await session.detectHardware();
+    expect(session.simulate, isTrue);
+    expect(session.device, isNotNull);
+    expect(session.sourceNote, isNotNull);
     session.dispose();
   });
 

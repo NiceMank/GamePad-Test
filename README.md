@@ -6,6 +6,10 @@
 plus un relais PC qui émule une **manette Xbox 360** pour jouer avec n'importe quelle
 manette connectée au téléphone.
 
+> **0.4.0** — la lecture d'une vraie manette est enfin le chemin principal :
+> branchez une manette, l'application affiche ses entrées, son nom et sa batterie
+> sans manipulation. Voir [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+
 ```
 apps/mobile       Application Android (et build web de démonstration)
 apps/pclink       PadLab Link : réception UDP + manette virtuelle Xbox (Windows/Linux)
@@ -24,15 +28,46 @@ packages/pad_bridge Plugin Android : InputDevice, MotionEvent 1000 Hz, batterie,
 | Batterie | pourcentage, statut de charge, autonomie estimée avec niveau de confiance, santé A–E, historique |
 | Remapping | bouton→bouton, axe→bouton, stick→croix, deadzones, courbes, inversion, profils JSON |
 | Link | protocole binaire `PLK1`, appairage, transports USB/Wi-Fi, envoi vers le PC |
-| Réglages | thème système/sombre/clair, source des entrées (simulation ↔ matériel), détection des manettes |
+| Réglages | thème système/sombre/clair, source des entrées (Auto / Manette / Démo), détection des manettes |
 
-Le mode **simulation** permet d'utiliser toute l'application sans manette (et sur le web) ;
-le mode **matériel** lit la manette via le plugin natif.
+### Vraie manette ou démonstration ?
+
+Au démarrage, PadLab cherche une manette. **Si elle est là, ses entrées sont lues
+directement** : boutons, sticks, gâchettes, batterie, vibration. Aucune manipulation
+n'est nécessaire, et le badge de l'accueil affiche `Réel` en vert.
+
+Sans manette, l'accueil l'annonce (« Aucune manette branchée ») et propose la
+démonstration, clairement étiquetée `Démo`. Brancher une manette à chaud bascule
+tout seul en réel ; la débrancher ramène à la démonstration avec le motif affiché.
+
+Trois modes sont disponibles dans Réglages : **Auto** (recommandé), **Manette**
+(uniquement le matériel, l'écran reste vide s'il n'y en a pas) et **Démo**.
+Les mesures de démonstration ne sont jamais mélangées à des mesures réelles :
+changer de source remet les analyseurs à zéro.
+
+### Ce qui est lu, et ce qui ne l'est pas
+
+| Donnée | Source |
+|---|---|
+| Boutons, croix directionnelle | `KeyEvent` → `KEYCODE_BUTTON_*` |
+| Sticks, gâchettes | `MotionEvent` → `AXIS_*` (histogramme natif inclus) |
+| Nom, VID/PID, transport | `InputDevice` |
+| Batterie | `InputDevice.getBatteryState()` — **Android 12+** |
+| Vibration | `VibratorManager`, deux canaux quand la manette les expose |
+
+Honnêteté sur les limites : sous Android 12, l'API batterie n'existe pas et
+l'écran affiche « non exposée » plutôt qu'un pourcentage inventé. Le remapping
+système Android resterait impossible sans root ; PadLab remappe dans
+l'application et, côté PC, via une manette Xbox virtuelle. iOS n'est pas couvert.
 
 ## Aperçus
 
 Refonte de l'interface et manette 3D reconstruite pièce par pièce (rotation 360°,
 modèle propre à chaque famille, allumage des touches identique à un appui réel).
+
+| Accueil, manette réelle | Accueil, aucune manette |
+|---|---|
+| ![](apps/mobile/test/goldens/home_real_dark.png) | ![](apps/mobile/test/goldens/home_empty_dark.png) |
 
 | Rotation complète (DualSense) |
 |---|
@@ -62,8 +97,8 @@ vérifie : `apps/mobile/test/tap_to_state_test.dart`.
 
 **La version PC est `apps/pclink`** — application Flutter desktop (Windows et Linux).
 Binaires prêts à l'emploi : [`docs/PC.md`](docs/PC.md) et la
-[release v0.2.0](https://github.com/NiceMank/GamePad-Test/releases/tag/v0.2.0)
-(`PadLab-Link-0.2.0-windows-x64.zip`, `PadLab-Link-0.2.0-linux-x64.tar.gz`).
+[release v0.4.0](https://github.com/NiceMank/GamePad-Test/releases/tag/v0.4.0)
+(`PadLab-Link-0.4.0-windows-x64.zip`, `PadLab-Link-0.4.0-linux-x64.tar.gz`).
 La CI compile aussi `ViGEmClient.dll` et le livre à côté de l'exécutable.
 
 `apps/pclink` écoute en UDP `47833` (secours TCP `47834`), vérifie le code à 4 chiffres,

@@ -3,6 +3,7 @@ import 'package:pad_core/pad_core.dart';
 import 'package:pad_ui/pad_ui.dart';
 
 import '../../app/scope.dart';
+import '../../session/pad_session.dart';
 import '../link/link_screen.dart';
 import '../remap/remap_screen.dart';
 
@@ -26,7 +27,12 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _TopBar(simulate: session.simulate, onSettings: () => onNavigate(4)),
+          _TopBar(
+            simulate: session.simulate,
+            live: session.isReal && device != null,
+            hasDevice: device != null,
+            onSettings: () => onNavigate(4),
+          ),
           const SizedBox(height: 18),
 
           // --- titre éditorial ------------------------------------------------
@@ -45,13 +51,38 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            [
-              family.label,
-              device?.connection == ConnectionGuess.bluetooth ? 'Bluetooth' : 'USB',
-              if (session.simulate) 'simulation',
-            ].join(' · '),
+            device == null
+                ? 'Branchez une manette pour commencer'
+                : [
+                    family.label,
+                    device.connection == ConnectionGuess.bluetooth
+                        ? 'Bluetooth'
+                        : 'USB',
+                    session.isReal ? 'entrées réelles' : 'démonstration',
+                  ].join(' · '),
             style: TextStyle(fontSize: 12, color: c.muted),
           ),
+          if (session.sourceNote != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  session.isReal
+                      ? Icons.sensors_rounded
+                      : Icons.info_outline_rounded,
+                  size: 13,
+                  color: session.isReal ? c.green : c.muted,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    session.sourceNote!,
+                    style: TextStyle(fontSize: 10.5, color: c.muted),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
 
           // --- scène 3D --------------------------------------------------------
@@ -75,15 +106,20 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                Controller3D(
-                  state: session.state,
-                  family: family,
-                  layout: family.layout,
-                  height: 250,
-                  autoRotate: true,
-                  showHint: true,
-                  onButtonTap: session.tapButton,
-                ),
+                if (device == null)
+                  // Aucune manette : on ne montre pas un modèle inventé qui
+                  // passerait pour le matériel de l'utilisateur.
+                  _NoDevice(onDemo: () => session.setMode(SourceMode.demo))
+                else
+                  Controller3D(
+                    state: session.state,
+                    family: family,
+                    layout: family.layout,
+                    height: 250,
+                    autoRotate: true,
+                    showHint: true,
+                    onButtonTap: session.tapButton,
+                  ),
               ],
             ),
           ),
@@ -96,10 +132,19 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _HeroStat(
                   label: 'Santé',
-                  value: report.score.toStringAsFixed(0),
-                  unit: '/ 100',
-                  caption: report.gradeLabel,
-                  tone: _scoreTone(c, report.score),
+                  // Sans mesures réelles, un score serait une invention.
+                  value: session.simulate || session.hasMeasurements
+                      ? report.score.toStringAsFixed(0)
+                      : '—',
+                  unit: session.simulate || session.hasMeasurements
+                      ? '/ 100'
+                      : null,
+                  caption: session.simulate || session.hasMeasurements
+                      ? report.gradeLabel
+                      : 'bougez les sticks',
+                  tone: session.simulate || session.hasMeasurements
+                      ? _scoreTone(c, report.score)
+                      : c.muted,
                 ),
               ),
               Container(width: 1, height: 40, color: c.line),
@@ -107,8 +152,10 @@ class HomeScreen extends StatelessWidget {
                 child: _HeroStat(
                   label: 'Batterie',
                   value: battery.percent == null ? '—' : battery.percent!.toStringAsFixed(0),
-                  unit: '%',
-                  caption: estimate.remaining == null
+                  unit: battery.percent == null ? null : '%',
+                  caption: battery.percent == null
+                      ? 'non exposée'
+                      : estimate.remaining == null
                       ? 'estimation en cours'
                       : '≈ ${_duration(estimate.remaining!)} restantes',
                   tone: _batteryTone(c, battery.percent),
@@ -119,7 +166,9 @@ class HomeScreen extends StatelessWidget {
                 child: _HeroStat(
                   label: 'Entrées',
                   value: session.state.hasInput ? 'LIVE' : '—',
-                  caption: session.simulate ? 'générées' : 'matérielles',
+                  caption: device == null
+                      ? 'aucune'
+                      : (session.isReal ? 'matérielles' : 'générées'),
                   tone: session.state.hasInput ? c.green : c.muted,
                   mono: false,
                 ),
@@ -169,16 +218,52 @@ class HomeScreen extends StatelessWidget {
 
           const SizedBox(height: 22),
           SectionLabel(
-            'Dernières sessions',
-            trailing: Text('3', style: TextStyle(fontSize: 11, color: c.muted)),
+            'Sessions lues',
+            trailing: Text(
+              '${session.sessions.length}',
+              style: TextStyle(fontSize: 11, color: c.muted),
+            ),
           ),
-          const _SessionRow(name: 'DualSense', detail: 'Aujourd\'hui · 14:32 · 30 s', score: 85),
-          const _SessionRow(name: 'Xbox Series', detail: 'Hier · 19:07 · 30 s', score: 78),
-          const _SessionRow(name: 'Switch Pro', detail: '12 oct. · 09:14 · 30 s', score: 91),
+          if (session.sessions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                'Aucune session réelle enregistrée pour le moment. '
+                'Branchez une manette : la lecture démarre seule et sera notée ici.',
+                style: TextStyle(fontSize: 10.5, height: 1.5, color: c.muted),
+              ),
+            )
+          else
+            for (final record in session.sessions.take(3))
+              _SessionRow(
+                name: record.name,
+                detail:
+                    '${_sessionWhen(record.startedAt)} · '
+                    '${_duration(record.duration)}',
+                score: record.score.round(),
+              ),
         ],
       ),
     );
   }
+
+  /// « aujourd'hui » / « hier » / date courte, sans invention.
+  static String _sessionWhen(DateTime at) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(at.year, at.month, at.day);
+    final days = today.difference(day).inDays;
+    final hh = at.hour.toString().padLeft(2, '0');
+    final mm = at.minute.toString().padLeft(2, '0');
+    if (days == 0) return 'aujourd\'hui $hh:$mm';
+    if (days == 1) return 'hier $hh:$mm';
+    return '${at.day} ${_months[at.month - 1]} · $hh:$mm';
+  }
+
+  static const _months = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
 
   static String _duration(Duration d) {
     if (d.inHours >= 1) return '${d.inHours} h ${d.inMinutes % 60} min';
@@ -200,9 +285,18 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.simulate, required this.onSettings});
+  const _TopBar({
+    required this.simulate,
+    required this.live,
+    required this.hasDevice,
+    required this.onSettings,
+  });
 
   final bool simulate;
+
+  /// Vrai quand les entrées viennent réellement d'une manette.
+  final bool live;
+  final bool hasDevice;
   final VoidCallback onSettings;
 
   @override
@@ -240,29 +334,41 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        if (simulate)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: c.line),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(color: c.amber, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  'Démo',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.muted),
-                ),
-              ],
-            ),
+        // Badge franc : on doit voir d'un coup d'œil si la manette affichée
+        // est réelle ou inventée.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: live ? c.green.withValues(alpha: 0.12) : c.surface,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: live ? c.green : c.line),
           ),
+          child: Row(
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: live ? c.green : c.amber,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                live
+                    ? 'Réel'
+                    : hasDevice
+                    ? 'Démo'
+                    : 'Aucun',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: live ? c.green : c.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
         IconButton(
           onPressed: onSettings,
           visualDensity: VisualDensity.compact,
@@ -438,6 +544,53 @@ class _SessionRow extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: tone,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Panneau affiché quand aucune manette n'est branchée : on explique quoi
+/// faire au lieu de dessiner un contrôleur fictif.
+class _NoDevice extends StatelessWidget {
+  const _NoDevice({required this.onDemo});
+
+  final VoidCallback onDemo;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.videogame_asset_off_rounded, size: 40, color: c.muted),
+          const SizedBox(height: 12),
+          Text(
+            'Aucune manette branchée',
+            style: TextStyle(
+              fontFamily: PadType.display,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: c.text,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Text(
+              'Branchez une manette en USB ou appairez-la en Bluetooth. '
+              'Elle sera reconnue automatiquement, sans redémarrer l\'application.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10.5, height: 1.5, color: c.muted),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GhostButton(
+            label: 'Voir la démonstration',
+            icon: Icons.play_circle_outline_rounded,
+            onPressed: onDemo,
           ),
         ],
       ),

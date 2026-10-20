@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pad_ui/pad_ui.dart';
 
 import '../../app/scope.dart';
+import '../../session/pad_session.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.themeMode, required this.onThemeMode});
@@ -54,16 +55,47 @@ class SettingsScreen extends StatelessWidget {
         PadCard(
           child: Column(
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: session.simulate,
-                onChanged: session.setSimulation,
-                title: Text('Mode simulation', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.text)),
-                subtitle: Text(
-                  'Génère une manette virtuelle pour tester l\'UI sans matériel.',
-                  style: TextStyle(fontSize: 10, color: c.muted),
+              Text(
+                'Source des entrées',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: c.text,
                 ),
               ),
+              const SizedBox(height: 8),
+              SegmentedTabs(
+                labels: const ['Auto', 'Manette', 'Démo'],
+                index: switch (session.mode) {
+                  SourceMode.auto => 0,
+                  SourceMode.real => 1,
+                  SourceMode.demo => 2,
+                },
+                compact: true,
+                onChanged: (i) => session.setMode(switch (i) {
+                  0 => SourceMode.auto,
+                  1 => SourceMode.real,
+                  _ => SourceMode.demo,
+                }),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                session.isReal
+                    ? 'Les entrées affichées viennent de la manette branchée.'
+                    : 'Les entrées sont générées : aucune manette n\'est lue.',
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.4,
+                  color: session.isReal ? c.green : c.muted,
+                ),
+              ),
+              if (session.sourceNote != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  session.sourceNote!,
+                  style: TextStyle(fontSize: 10, color: c.muted),
+                ),
+              ],
               const Divider(height: 1),
               ListTile(
                 contentPadding: EdgeInsets.zero,

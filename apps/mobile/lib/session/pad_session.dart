@@ -8,25 +8,103 @@ import 'package:pad_core/pad_core.dart';
 import 'hardware_source.dart';
 import 'link_sender.dart';
 
+/// Une session d'utilisation réelle, gardée en mémoire pour l'accueil.
+///
+/// Rien n'est inventé : une session n'existe que si une manette a réellement
+/// été lue assez longtemps.
+class SessionRecord {
+  const SessionRecord({
+    required this.name,
+    required this.startedAt,
+    required this.duration,
+    required this.score,
+  });
+
+  final String name;
+  final DateTime startedAt;
+  final Duration duration;
+  final double score;
+}
+
+/// D'où viennent les entrées.
+enum SourceMode {
+  /// Décide tout seul : manette présente → réel, sinon démonstration.
+  auto,
+
+  /// Manette physique uniquement ; sans manette l'écran reste vide.
+  real,
+
+  /// Manette virtuelle, pour découvrir l'application sans matériel.
+  demo,
+}
+
 /// Session de test : source d'état (matériel ou simulation), analyses et
 /// batterie. L'UI n'écoute que ce notifier.
 class PadSession extends ChangeNotifier {
-  PadSession({this.simulate = true}) {
-    _seedBatteryHistory();
-    if (simulate) {
+  /// [simulate] reste accepté pour le code existant ; il équivaut à
+  /// [mode] `demo` ou `real`.
+  PadSession({SourceMode mode = SourceMode.auto, bool? simulate})
+    : _mode = simulate == null
+          ? mode
+          : (simulate ? SourceMode.demo : SourceMode.real) {
+    // Passer par une méthode : dans le corps d'un constructeur, le paramètre
+    // nommé `simulate` masquerait le champ du même nom.
+    _init();
+  }
+
+  void _init() {
+    if (_mode == SourceMode.demo) {
+      _seedBatteryHistory();
       _startSimulation();
       seedDemoAnalysis();
+    } else {
+      // Ni réel ni auto ne démarrent une simulation : tant qu'aucune manette
+      // n'est confirmée, l'écran doit dire « aucune manette ».
+      simulate = false;
     }
   }
 
-  bool simulate;
+  SourceMode _mode;
+
+  /// Mode demandé par l'utilisateur (auto, réel, démo).
+  SourceMode get mode => _mode;
+
+  /// Vrai quand les entrées affichées sont générées. En mode auto, ce
+  /// drapeau suit la présence réelle d'une manette : c'est lui qui dit à
+  /// l'interface si ce qu'elle montre est vrai ou non.
+  bool simulate = true;
+
+  /// Vrai si la source est la manette physique.
+  bool get isReal => !simulate;
+
+  /// Assez d'échantillons pour que le score de santé veuille dire quelque
+  /// chose. En matériel, un score calculé sur zéro mesure serait trompeur.
+  bool get hasMeasurements =>
+      leftStick.sampleCount >= 30 || rightStick.sampleCount >= 30;
+
+  bool _disposed = false;
+
+  /// Historique des lectures réelles (les plus récentes d'abord).
+  final List<SessionRecord> sessions = <SessionRecord>[];
+  DateTime? _realSince;
+
+  /// `notifyListeners` sûr : un minuteur peut se déclencher après la
+  /// fermeture de l'écran.
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Explication du dernier basculement (affichée dans l'interface).
+  String? sourceNote;
 
   PadDevice? device;
   PadState state = PadState.idle;
+  /// Dernière lecture connue. `percent == null` = inconnu, et l'interface
+  /// l'affiche comme tel plutôt que d'inventer un chiffre.
   BatteryReading battery = BatteryReading(
     at: DateTime.now(),
-    status: BatteryStatus.discharging,
-    percent: 78,
+    status: BatteryStatus.unknown,
+    percent: null,
   );
 
   final StickAnalyzer leftStick = StickAnalyzer();
@@ -43,7 +121,7 @@ class PadSession extends ChangeNotifier {
   PadState rawState = PadState.idle;
 
   /// Identifiant Android de la manette suivie (0 = aucune).
-  int activeDeviceId = 1;
+  int activeDeviceId = 0;
 
   /// Pont matériel (null tant qu'on n'a pas essayé).
   HardwareSource? hardware;
@@ -102,7 +180,8 @@ class PadSession extends ChangeNotifier {
   void _startSimulation() {
     device ??= const PadDevice(
       id: 1,
-      name: 'DualSense Wireless',
+      // Nom volontairement explicite : ce n'est pas une vraie manette.
+      name: 'DualSense · démonstration',
       vendorId: 1356,
       productId: 3302,
       connection: ConnectionGuess.bluetooth,
@@ -127,16 +206,80 @@ class PadSession extends ChangeNotifier {
   }
 
   void setSimulation(bool value) {
-    if (simulate == value) return;
-    simulate = value;
-    if (value) {
-      unawaited(stopHardware());
-      _startSimulation();
-    } else {
-      _stopTimer();
-      unawaited(startHardware());
+    setMode(value ? SourceMode.demo : SourceMode.real);
+  }
+
+  /// Change de source et applique le changement tout de suite.
+  void setMode(SourceMode next) {
+    if (_mode == next) return;
+    _mode = next;
+    unawaited(_applyMode());
+  }
+
+  /// Applique [_mode] : démarre ou coupe la capture réelle.
+  ///
+  /// En auto, la décision dépend de ce que le pont trouve : c'est ce qui
+  /// manquait — la manette était détectée mais jamais écoutée.
+  Future<void> _applyMode() async {
+    switch (_mode) {
+      case SourceMode.demo:
+        await stopHardware();
+        _switchToDemo(note: null);
+      case SourceMode.real:
+        // Choix explicite : on ne retombe jamais en démonstration, même sans
+        // manette. L'écran affiche alors « aucune manette ».
+        _switchToReal();
+        await startHardware();
+        if (hardwareError != null) {
+          sourceNote = hardwareError;
+          // Même sans manette, on continue de guetter un branchement : en
+          // mode « Manette », l'utilisateur attend qu'elle apparaisse seule.
+          hardware?.watchDevices();
+        }
+      case SourceMode.auto:
+        hardware ??= HardwareSource(this);
+        final devices = await hardware!.listDevices();
+        hardwareDevices = devices;
+        if (devices.isEmpty) {
+          _switchToDemo(
+            note: 'Aucune manette détectée : entrées de démonstration.',
+          );
+          hardware!.watchDevices();
+        } else {
+          await startHardware();
+          if (hardwareError != null && simulate) {
+            _switchToDemo(note: hardwareError);
+            hardware!.watchDevices();
+          }
+        }
     }
-    notifyListeners();
+    _notify();
+  }
+
+  void _switchToReal() {
+    _realSince ??= DateTime.now();
+    _stopTimer();
+    _injected.clear();
+    // Les mesures de démonstration ne doivent pas se mélanger aux vraies :
+    // on repart d'un historique vide, quitte à afficher « — » un moment.
+    resetAnalysis();
+    batteryEstimator.reset();
+    battery = BatteryReading(
+      at: DateTime.now(),
+      status: BatteryStatus.unknown,
+      percent: null,
+    );
+    simulate = false;
+    sourceNote = null;
+  }
+
+  void _switchToDemo({String? note}) {
+    _closeSession();
+    unawaited(stopHardware());
+    simulate = true;
+    sourceNote = note;
+    if (battery.percent == null) _seedBatteryHistory();
+    if (_timer == null) _startSimulation();
   }
 
   // --- analyse ------------------------------------------------------------
@@ -240,11 +383,11 @@ class PadSession extends ChangeNotifier {
   /// Injecte 70 minutes d'historique pour démontrer l'estimation sans
   /// attendre une vraie session (mode simulation uniquement).
   void seedDemoBattery() {
-    _seedBatteryHistory(force: true);
+    _seedBatteryHistory();
     notifyListeners();
   }
 
-  void _seedBatteryHistory({bool force = false}) {
+  void _seedBatteryHistory() {
     batteryEstimator.reset();
     final now = DateTime.now();
     for (var i = 0; i <= 14; i++) {
@@ -254,16 +397,14 @@ class PadSession extends ChangeNotifier {
         percent: 88 - i * 1.0,
       ));
     }
-    if (force) {
-      _batteryPercent = 74;
-      battery = BatteryReading(
-        at: now,
-        status: BatteryStatus.discharging,
-        percent: _batteryPercent,
-      );
-    } else {
-      batteryEstimator.add(battery);
-    }
+    // La démonstration assume une batterie : elle doit être annoncée comme
+    // simulée, jamais confondue avec une lecture native.
+    _batteryPercent = 74;
+    battery = BatteryReading(
+      at: now,
+      status: BatteryStatus.discharging,
+      percent: _batteryPercent,
+    );
   }
 
   // --- simulation ---------------------------------------------------------
@@ -406,13 +547,24 @@ class PadSession extends ChangeNotifier {
   /// savoir si une manette est présente.
   Future<void> startHardware() async {
     hardware ??= HardwareSource(this);
-    hardwareError = await hardware!.start();
-    notifyListeners();
+    final error = await hardware!.start();
+    hardwareError = error;
+    if (error == null && hardware!.hasDevice) {
+      // La capture tourne : les entrées deviennent réelles. C'est la
+      // bascule qui manquait à la 0.3.x.
+      _stopTimer();
+      _injected.clear();
+      simulate = false;
+      sourceNote = null;
+    } else if (error != null) {
+      hardwareError = error;
+    }
+    _notify();
   }
 
   Future<void> stopHardware() async {
     await hardware?.stop();
-    notifyListeners();
+    _notify();
   }
 
   /// Vibration matérielle (deux moteurs). Sans effet en simulation.
@@ -430,30 +582,83 @@ class PadSession extends ChangeNotifier {
     await hardware?.stopVibration();
   }
 
-  /// Détection silencieuse au démarrage (sans passer en mode matériel).
+  /// Première décision : manette branchée ou non.
+  ///
+  /// C'est le point d'entrée appelé au démarrage. Il applique le mode choisi
+  /// au lieu de rester en simulation.
   Future<void> detectHardware() async {
-    hardware ??= HardwareSource(this);
-    final devices = await hardware!.listDevices();
+    await _applyMode();
+  }
+
+  /// Réaction à un branchement/débranchement, appelée par la source native.
+  ///
+  /// En mode auto uniquement : un changement de matériel ne doit pas écraser
+  /// un choix explicite de l'utilisateur.
+  void onHardwareDevicesChanged(
+    List<PadDevice> devices, {
+    bool hardwareLive = false,
+  }) {
     hardwareDevices = devices;
-    if (devices.isNotEmpty && simulate) {
-      // On garde la simulation, mais on connaît la manette présente.
-      device ??= devices.first;
+    if (_mode != SourceMode.auto) {
+      if (devices.isEmpty && isReal) {
+        sourceNote = 'Manette débranchée.';
+      }
+      _notify();
+      return;
     }
-    notifyListeners();
+    if (devices.isEmpty && isReal) {
+      _switchToDemo(note: 'Manette débranchée : retour à la démonstration.');
+      _notify();
+    } else if (devices.isNotEmpty && simulate) {
+      if (hardwareLive) {
+        // La capture est déjà en train de démarrer : inutile de la relancer.
+        _switchToReal();
+        sourceNote = 'Manette détectée : entrées réelles.';
+        _notify();
+      } else {
+        _switchToReal();
+        unawaited(startHardware());
+        sourceNote = 'Manette détectée : entrées réelles.';
+        _notify();
+      }
+    } else {
+      _notify();
+    }
+  }
+
+  /// Clôt la session réelle en cours, si elle a duré assez longtemps pour
+  /// valoir la peine d'être notée.
+  void _closeSession() {
+    final start = _realSince;
+    _realSince = null;
+    if (start == null || device == null) return;
+    final duration = DateTime.now().difference(start);
+    if (duration.inSeconds < 3) return;
+    sessions.insert(
+      0,
+      SessionRecord(
+        name: device!.name,
+        startedAt: start,
+        duration: duration,
+        score: buildHealthReport().score,
+      ),
+    );
+    if (sessions.length > 12) sessions.removeLast();
   }
 
   /// Met à jour la manette courante (branchement/débranchement).
   void setDevice(PadDevice? next) {
     device = next;
     activeDeviceId = next?.id ?? 0;
-    notifyListeners();
+    _notify();
   }
 
   /// Met à jour la batterie (lecture native ou simulation continue).
   void setBattery(BatteryReading reading) {
+    if (_disposed) return;
     battery = reading;
     batteryEstimator.add(reading);
-    notifyListeners();
+    _notify();
   }
 
   void _logEvent(PadEvent event) {
@@ -463,6 +668,8 @@ class PadSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    _closeSession();
+    _disposed = true;
     _injected.clear();
     _stopTimer();
     link.stop();

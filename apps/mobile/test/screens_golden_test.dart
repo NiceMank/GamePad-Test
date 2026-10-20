@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pad_core/pad_core.dart';
 import 'package:pad_ui/pad_ui.dart';
 import 'package:padlab/app/scope.dart';
 import 'package:padlab/features/analysis/analysis_screen.dart';
@@ -61,8 +62,10 @@ void main() {
     String name, {
     Brightness brightness = Brightness.light,
     bool withSession = true,
+    void Function(PadSession)? setup,
   }) async {
-    final session = PadSession();
+    final session = PadSession(mode: setup == null ? SourceMode.demo : SourceMode.real);
+    setup?.call(session);
     await tester.binding.setSurfaceSize(const Size(430, 900));
     tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 2.0;
@@ -104,4 +107,46 @@ void main() {
   testWidgets('batterie sombre', (t) => shoot(t, const BatteryScreen(), 'battery_dark', brightness: Brightness.dark), skip: !enabled);
   testWidgets('reglages sombre', (t) => shoot(t, SettingsScreen(themeMode: ThemeMode.dark, onThemeMode: (_) {}), 'settings_dark', brightness: Brightness.dark), skip: !enabled);
   testWidgets('link sombre', (t) => shoot(t, const LinkScreen(), 'link_dark', brightness: Brightness.dark), skip: !enabled);
+
+  /// Mode réel : une manette branchée, badge vert et entrées matérielles.
+  testWidgets(
+    'accueil réel',
+    (t) => shoot(
+      t,
+      HomeScreen(onNavigate: (_) {}),
+      'home_real_dark',
+      brightness: Brightness.dark,
+      setup: (session) {
+        session.setDevice(const PadDevice(
+          id: 5,
+          name: 'DualSense Wireless Controller',
+          vendorId: 0x054C,
+          productId: 0x0CE6,
+          connection: ConnectionGuess.bluetooth,
+          controllerNumber: 1,
+          capabilities: PadCapabilities(buttonBits: 0x3FFFFF, vibratorCount: 2),
+          profileId: 'dualsense',
+        ));
+        session.setBattery(BatteryReading(
+          at: DateTime.now(),
+          status: BatteryStatus.discharging,
+          percent: 68,
+        ));
+      },
+    ),
+    skip: !enabled,
+  );
+
+  /// Aucune manette : l'application doit le dire, pas inventer une manette.
+  testWidgets(
+    'accueil sans manette',
+    (t) => shoot(
+      t,
+      HomeScreen(onNavigate: (_) {}),
+      'home_empty_dark',
+      brightness: Brightness.dark,
+      setup: (session) {},
+    ),
+    skip: !enabled,
+  );
 }

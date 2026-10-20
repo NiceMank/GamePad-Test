@@ -20,6 +20,7 @@ class HardwareSource {
 
   StreamSubscription<PadBridgeEvent>? _events;
   StreamSubscription<void>? _changes;
+  bool _starting = false;
   Timer? _batteryTimer;
   Timer? _uiTimer;
 
@@ -52,7 +53,18 @@ class HardwareSource {
 
   /// Démarre la capture. Renvoie `null` en cas de succès, sinon un message.
   Future<String?> start() async {
-    if (_running) return null;
+    // `_starting` évite un double abonnement quand le démarrage se rappelle
+    // lui-même via `refreshDevices`.
+    if (_running || _starting) return null;
+    _starting = true;
+    try {
+      return await _start();
+    } finally {
+      _starting = false;
+    }
+  }
+
+  Future<String?> _start() async {
     startedAt = DateTime.now();
     lastError = null;
     _state = PadState.idle;
@@ -64,7 +76,7 @@ class HardwareSource {
         lastError = 'Flux natif interrompu : $error';
       },
     );
-    _changes = _bridge.deviceChanges.listen((_) => unawaited(refreshDevices()));
+    await _watch();
 
     // L'UI suit à 60 Hz : inutile de reconstruire plus vite qu'un écran.
     _uiTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
@@ -85,6 +97,22 @@ class HardwareSource {
     return null;
   }
 
+  /// Surveille les branchements même quand la capture est arrêtée.
+  ///
+  /// Sans cela, une manette branchée après le démarrage ne serait jamais
+  /// remarquée : c'est exactement ce qui bloquait la version précédente.
+  Future<void> watchDevices() async {
+    if (_changes != null) return;
+    await _watch();
+  }
+
+  Future<void> _watch() async {
+    _changes ??= _bridge.deviceChanges.listen(
+      (_) => unawaited(refreshDevices()),
+    );
+    await refreshDevices();
+  }
+
   Future<void> stop() async {
     _running = false;
     _uiTimer?.cancel();
@@ -92,15 +120,21 @@ class HardwareSource {
     _batteryTimer?.cancel();
     _batteryTimer = null;
     await _events?.cancel();
-    await _changes?.cancel();
     _events = null;
-    _changes = null;
+    // La veille des branchements reste active : elle permet de repasser en
+    // réel dès qu'une manette apparaît.
   }
 
   /// Relit la liste des manettes et sélectionne la manette courante.
   Future<void> refreshDevices() async {
     final devices = await _bridge.listDevices();
     session.hardwareDevices = devices;
+    // Prévient la session : c'est elle qui décide de basculer en réel ou de
+    // revenir en démonstration.
+    session.onHardwareDevicesChanged(
+      devices,
+      hardwareLive: _running || _starting,
+    );
     if (devices.isEmpty) {
       session.setDevice(null);
       return;
@@ -172,5 +206,9 @@ class HardwareSource {
   @visibleForTesting
   int get sequence => _sequence;
 
-  Future<void> dispose() => stop();
+  Future<void> dispose() async {
+    await stop();
+    await _changes?.cancel();
+    _changes = null;
+  }
 }

@@ -35,6 +35,18 @@ class BatteryScreen extends StatelessWidget {
               sublabel: session.battery.status.labelFr.toUpperCase(),
             ),
           ),
+          if (percent == null) ...[
+            const SizedBox(height: 10),
+            Text(
+              session.isReal
+                  ? 'Cette manette n\'expose pas son niveau de batterie '
+                        '(Android 12 ou plus est nécessaire pour le lire). '
+                        'Aucune valeur n\'est affichée plutôt qu\'un chiffre inventé.'
+                  : 'Aucune lecture disponible.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10, height: 1.5, color: c.muted),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -152,9 +164,12 @@ class BatteryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'La manette n\'expose ni capacité de conception ni nombre de cycles. '
-            'L\'autonomie et la santé sont donc estimées à partir de mesures réelles, '
-            'avec un niveau de confiance affiché. Aucune valeur n\'est inventée.',
+            session.isReal
+                ? 'La manette n\'expose ni capacité de conception ni nombre de cycles. '
+                      'L\'autonomie et la santé sont estimées à partir des seules lectures '
+                      'natives, avec un niveau de confiance affiché. Aucune valeur n\'est inventée.'
+                : 'Mode démonstration : l\'historique de batterie est fabriqué pour '
+                      'illustrer les calculs. Il ne reflète aucune manette réelle.',
             style: TextStyle(fontSize: 10, height: 1.55, color: c.muted),
           ),
           const SizedBox(height: 14),

@@ -39,6 +39,7 @@ jobs:
       - name: Tests unitaires
         run: |
           (cd packages/pad_core && flutter test)
+          (cd packages/pad_ui && flutter test)
           (cd packages/pad_bridge && flutter test)
           (cd apps/mobile && flutter test)
           (cd apps/pclink && flutter test)

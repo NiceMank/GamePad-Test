@@ -18,20 +18,31 @@ class PadLabApp extends StatefulWidget {
   State<PadLabApp> createState() => _PadLabAppState();
 }
 
-class _PadLabAppState extends State<PadLabApp> {
+class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
   final PadSession _session = PadSession();
   ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
     super.initState();
-    // Détection silencieuse : l'UI reste en simulation mais sait si du
-    // matériel est présent (badge Réglages, accueil).
+    WidgetsBinding.instance.addObserver(this);
+    // Première décision : manette branchée → entrées réelles, sinon
+    // démonstration annoncée comme telle.
     unawaited(_session.detectHardware());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Une manette branchée pendant que l'application était en arrière-plan
+    // ne déclenche pas toujours l'écouteur natif : on re-sonde au retour.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_session.detectHardware());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _session.dispose();
     super.dispose();
   }

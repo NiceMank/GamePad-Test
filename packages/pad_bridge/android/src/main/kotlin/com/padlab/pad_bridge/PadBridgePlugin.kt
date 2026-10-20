@@ -142,6 +142,9 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
     // --- EventChannel ------------------------------------------------------
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+        // Les événements accumulés pendant qu'aucun Dart n'écoutait sont
+        // périmés : les rejouer ferait sauter l'état d'un coup.
+        synchronized(pending) { pending.clear() }
         sink = events
     }
 
@@ -243,7 +246,13 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
 
     private fun flush() {
         flushScheduled = false
-        val sink = sink ?: return
+        val sink = sink
+        if (sink == null) {
+            // Personne n'écoute : inutile de garder des événements qui
+            // seraient de toute façon périmés au prochain abonnement.
+            synchronized(pending) { pending.clear() }
+            return
+        }
         val batch = synchronized(pending) {
             val list = pending.toList()
             pending.clear()

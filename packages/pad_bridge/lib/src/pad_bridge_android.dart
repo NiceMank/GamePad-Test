@@ -19,18 +19,41 @@ class PadBridgeAndroid {
   StreamController<void>? _deviceChanges;
   StreamSubscription<dynamic>? _subscription;
 
+  /// Nombre d'abonnés sur les deux flux.
+  ///
+  /// Le canal natif ne doit s'arrêter que lorsque **plus personne** n'écoute :
+  /// sinon couper la capture des entrées tuerait aussi la veille des
+  /// branchements, et une manette rebranchée ne serait plus jamais vue.
+  int _refCount = 0;
+
+  void _listen() {
+    _refCount++;
+    if (_subscription == null) _start();
+  }
+
+  void _unlisten() {
+    _refCount--;
+    if (_refCount <= 0) {
+      _refCount = 0;
+      unawaited(_stop());
+    }
+  }
+
   /// Événements natifs décodés, un par changement.
   Stream<PadBridgeEvent> get events {
     _controller ??= StreamController<PadBridgeEvent>.broadcast(
-      onListen: _start,
-      onCancel: _stop,
+      onListen: _listen,
+      onCancel: _unlisten,
     );
     return _controller!.stream;
   }
 
   /// Émis quand une manette est branchée/débranchée (côté natif).
   Stream<void> get deviceChanges {
-    _deviceChanges ??= StreamController<void>.broadcast(onListen: _start);
+    _deviceChanges ??= StreamController<void>.broadcast(
+      onListen: _listen,
+      onCancel: _unlisten,
+    );
     return _deviceChanges!.stream;
   }
 
