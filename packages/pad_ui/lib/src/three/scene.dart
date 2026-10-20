@@ -32,7 +32,7 @@ class Face {
 }
 
 /// Symbole gravé sur un bouton de façade.
-enum PadGlyph { circle, cross, square, triangle }
+enum PadGlyph { circle, cross, square, triangle, letterA, letterB, letterX, letterY }
 
 /// Morceau de manette (corps, stick, bouton…) avec ses faces.
 class Part {

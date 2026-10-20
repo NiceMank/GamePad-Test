@@ -196,11 +196,12 @@ class _Layout {
           symmetric: true,
         );
       case ControllerFamily.steamDeck:
+        // Sticks en haut sous l'écran, croix et boutons en bas.
         return const _Layout(
-          leftStick: Offset(-0.268, 0.114),
-          rightStick: Offset(0.268, 0.114),
-          dpad: Offset(-0.418, -0.246),
-          face: Offset(0.418, -0.246),
+          leftStick: Offset(-0.330, 0.108),
+          rightStick: Offset(0.330, 0.108),
+          dpad: Offset(-0.330, -0.212),
+          face: Offset(0.330, -0.212),
           symmetric: true,
         );
       default:
@@ -228,7 +229,9 @@ List<Offset> _outline(ControllerFamily family) {
       (1.00, 1.02, 1.03, 1.05),
     ControllerFamily.switchPro => (0.94, 0.90, 0.97, 0.95),
     ControllerFamily.joyCon => (0.88, 0.86, 0.96, 0.90),
-    ControllerFamily.steamDeck => (1.12, 1.04, 1.06, 1.10),
+    // Steam Deck : plus large, poignées plus massives et plus verticales,
+    // bord supérieur presque rectiligne (c'est une console, pas un pad).
+    ControllerFamily.steamDeck => (1.16, 1.10, 0.92, 1.14),
     _ => (1.0, 1.0, 1.0, 1.0),
   };
 
@@ -407,27 +410,43 @@ class ControllerScene {
     parts.add(shell);
 
     // --- épaules et gâchettes ----------------------------------------------
-    // Une épaule n'est pas un bloc posé sur le dessus : c'est une bande qui
-    // vient coiffer l'arête de la coque. On la construit donc à partir du
-    // contour du boîtier, décalé vers l'extérieur.
-    List<Offset> shoulderBand(double sign, double grow, double fromX) {
+    // Ce sont deux pièces distinctes : l'épaule (L1/R1) est un bandeau fin
+    // posé sur l'arête avant du boîtier, la gâchette (L2/R2) est une palette
+    // plus large qui passe DERRIÈRE, et qui dépasse de la silhouette. Entre
+    // les deux, une gorge laisse voir le fond : c'est ce qui les sépare à
+    // l'œil. Avant, les deux étaient tirées du même contour et se
+    // recouvraient presque entièrement.
+    List<Offset> shoulderBand(
+      double sign, {
+      required double fromX,
+      required double toX,
+      required double growIn,
+      required double growOut,
+      double drop = 0,
+    }) {
       final pivot = Offset(sign * 0.40, 0.02);
-      final inner = [
-        for (final q in outline)
-          if (q.dx * sign > fromX && q.dx * sign < 0.90 && q.dy > -0.03) q,
-      ];
-      // L'épaisseur s'annule aux deux extrémités : l'épaule se fond dans la
-      // coque au lieu de s'arrêter sur une arête franche.
-      final n = inner.length;
+      final inner = <Offset>[];
       final outer = <Offset>[];
-      for (var i = 0; i < n; i++) {
-        final t = n == 1 ? 0.0 : i / (n - 1);
-        final taper =
-            (0.30 + 0.70 * math.sin(math.pi * t)).clamp(0.30, 1.0);
-        final v = inner[i] - pivot;
+      for (final q in outline) {
+        final ax = q.dx * sign;
+        if (ax < fromX || ax > toX) continue;
+        if (q.dy < 0.02) continue;
+        final v = q - pivot;
         final d = v.distance == 0 ? 1.0 : v.distance;
-        outer.add(pivot + v * ((d + grow * taper) / d));
+        // L'épaisseur s'annule aux extrémités : la pièce se fond dans la
+        // coque au lieu de s'arrêter sur une arête franche.
+        final t = (ax - fromX) / (toX - fromX);
+        final taper = math.sin(math.pi * t.clamp(0.0, 1.0));
+        inner.add(Offset(
+          pivot.dx + v.dx * (d + growIn * taper) / d,
+          pivot.dy + v.dy * (d + growIn * taper) / d - drop,
+        ));
+        outer.add(Offset(
+          pivot.dx + v.dx * (d + growOut * taper) / d,
+          pivot.dy + v.dy * (d + growOut * taper) / d - drop,
+        ));
       }
+      if (inner.length < 2) return const [];
       return [...inner, ...outer.reversed];
     }
 
@@ -437,49 +456,83 @@ class ControllerScene {
       (1.0, PadButton.r1, PadButton.r2),
     ]) {
       if (hasTriggers) {
-        final triggerPart = extrude(
-          contour: shoulderBand(sign, 0.042, 0.46),
-          zFront: -0.012,
-          zBack: -0.082,
-          front: Color.lerp(p.button, Colors.black, 0.18)!,
-          side: Color.lerp(p.button, Colors.black, 0.30)!,
-          sideBack: Color.lerp(p.button, Colors.black, 0.42)!,
-          back: p.shellBack,
-          name: 'gâchette',
+        // Gâchette : large, derrière, elle dépasse franchement.
+        final contour = shoulderBand(
+          sign,
+          fromX: 0.34,
+          toX: 0.97,
+          growIn: 0.085,
+          growOut: 0.165,
+          drop: 0.020,
         );
-        triggerPart
-          ..button = trigger
-          ..glow = 0.34;
-        parts.add(triggerPart);
-        buttons.add((
-          button: trigger,
-          center: V3(sign * 0.66, 0.34, -0.10),
-          radius: 0.105,
-        ));
+        if (contour.isNotEmpty) {
+          final triggerPart = extrude(
+            contour: contour,
+            zFront: -0.026,
+            zBack: -0.112,
+            front: Color.lerp(p.button, Colors.black, 0.10)!,
+            side: Color.lerp(p.button, Colors.black, 0.34)!,
+            sideBack: Color.lerp(p.button, Colors.black, 0.46)!,
+            back: p.shellBack,
+            name: 'gâchette',
+            smooth: false,
+          );
+          triggerPart
+            ..button = trigger
+            ..glow = 0.34;
+          parts.add(triggerPart);
+          buttons.add((
+            button: trigger,
+            center: V3(sign * 0.78, 0.30, -0.075),
+            radius: 0.085,
+          ));
+        }
       }
 
-      final bumperPart = extrude(
-        contour: shoulderBand(sign, 0.036, 0.33),
-        zFront: front + 0.020,
-        zBack: -0.070,
-        front: p.bumper ?? p.buttonTop,
-        side: p.button,
-        sideBack: Color.lerp(p.button, Colors.black, 0.25),
-        back: p.button,
-        name: 'épaule',
+      // Épaule : mince, sur l'arête avant, nettement en retrait.
+      final bumperContour = shoulderBand(
+        sign,
+        fromX: 0.35,
+        toX: 0.80,
+        growIn: 0.0,
+        growOut: 0.040,
       );
-      bumperPart
-        ..button = bumper
-        ..glow = 0.34;
-      parts.add(bumperPart);
-      buttons.add((
-        button: bumper,
-        center: V3(sign * 0.68, 0.30, front + 0.030),
-        radius: 0.095,
-      ));
+      if (bumperContour.isNotEmpty) {
+        final bumperPart = extrude(
+          contour: bumperContour,
+          zFront: front + 0.012,
+          zBack: front - 0.038,
+          front: Color.lerp(p.shell, Colors.black, 0.04)!,
+          side: Color.lerp(p.shell, Colors.black, 0.30)!,
+          sideBack: Color.lerp(p.button, Colors.black, 0.20)!,
+          back: p.button,
+          name: 'épaule',
+          smooth: false,
+        );
+        bumperPart
+          ..button = bumper
+          ..glow = 0.34;
+        parts.add(bumperPart);
+        buttons.add((
+          button: bumper,
+          center: V3(sign * 0.60, 0.28, front + 0.030),
+          radius: 0.075,
+        ));
+      }
     }
 
     // --- sticks ------------------------------------------------------------
+    // Proportions propres à chaque famille : une Switch Pro a des sticks
+    // plus petits et plus hauts, une Xbox des sticks plus larges.
+    final (stickR, capR, capH) = switch (family) {
+      ControllerFamily.switchPro || ControllerFamily.joyCon => (0.128, 0.094, 0.062),
+      ControllerFamily.xboxSeries ||
+      ControllerFamily.xboxOne ||
+      ControllerFamily.xbox360 => (0.150, 0.120, 0.046),
+      ControllerFamily.steamDeck => (0.140, 0.108, 0.040),
+      _ => (0.150, 0.113, 0.050),
+    };
+
     void addStick(Offset center, String name, PadButton click) {
       // Sur PlayStation, les sticks sont posés dans le bandeau noir : leur
       // lunette est sombre, pas claire comme sur une manette Xbox.
@@ -489,7 +542,7 @@ class ControllerScene {
       // 1. Lunette d'assise : un anneau qui « reçoit » le stick.
       parts.add(cylinder(
         center: center,
-        radius: 0.150,
+        radius: stickR,
         zBase: front + 0.004,
         height: 0.004,
         top: seat,
@@ -500,7 +553,7 @@ class ControllerScene {
       // 2. Creux sombre : lecture immédiate d'un puits.
       parts.add(cylinder(
         center: center,
-        radius: 0.138,
+        radius: stickR - 0.012,
         zBase: front + 0.007,
         height: 0.006,
         top: family.isPlayStation ? const Color(0xFF15161A) : p.well,
@@ -511,7 +564,7 @@ class ControllerScene {
       // 3. Fût fin : la tige est bien plus étroite que le capuchon.
       parts.add(cylinder(
         center: center,
-        radius: 0.064,
+        radius: stickR * 0.43,
         zBase: front + 0.008,
         height: 0.086,
         top: p.stick,
@@ -522,24 +575,24 @@ class ControllerScene {
       // 4. Capuchon bombé.
       final cap = cylinder(
         center: center,
-        radius: 0.113,
+        radius: capR,
         zBase: front + 0.082,
-        height: 0.050,
+        height: capH,
         top: p.stickTop,
         side: p.stick,
         segments: 24,
         name: name,
       );
       cap.capCenter = center;
-      cap.capRadius = 0.113;
-      cap.capZ = front + 0.132;
+      cap.capRadius = capR;
+      cap.capZ = front + 0.082 + capH;
       cap.button = click;
       parts.add(cap);
       // 5. Creux central : la surface du capuchon est concave.
       parts.add(cylinder(
         center: center,
-        radius: 0.068,
-        zBase: front + 0.134,
+        radius: capR * 0.60,
+        zBase: front + 0.084 + capH,
         height: 0.002,
         top: Color.lerp(p.stick, Colors.black, 0.18)!,
         side: p.stick,
@@ -557,8 +610,11 @@ class ControllerScene {
     addStick(layout.rightStick, 'RS', PadButton.r3);
 
     // --- croix directionnelle ----------------------------------------------
+    // La croix PlayStation est une croix fine aux branches longues ; celle
+    // de la Xbox est plus compacte et plus épaisse.
+    final (arm, thick) = family.isPlayStation ? (0.152, 0.046) : (0.132, 0.056);
     final dpadPart = extrude(
-      contour: _cross(layout.dpad.dx, layout.dpad.dy, 0.140, 0.052),
+      contour: _cross(layout.dpad.dx, layout.dpad.dy, arm, thick),
       zFront: front + 0.034,
       zBack: front + 0.004,
       front: const Color(0xFF4A4C51),
@@ -667,10 +723,31 @@ class ControllerScene {
           _ => PadGlyph.triangle,
         };
         faceButton.glyphColor = _glyphColor(btn, family);
+      } else if (family.isXbox ||
+          family.isNintendo ||
+          family == ControllerFamily.steamDeck) {
+        // Lettres peintes en traits, plus lisibles que du texte à cette
+        // taille sur un capuchon coloré.
+        faceButton.glyph = switch (btn) {
+          PadButton.a => PadGlyph.letterA,
+          PadButton.b => PadGlyph.letterB,
+          PadButton.x => PadGlyph.letterX,
+          _ => PadGlyph.letterY,
+        };
+        faceButton.glyphColor = _glyphColor(btn, family);
       } else {
         faceButton.label = btn.glyph(family.layout);
         faceButton.labelColor = _glyphColor(btn, family);
         faceButton.labelScale = 0.92;
+      }
+      if (family.isNintendo) {
+        // Les lettres Nintendo sont colorées, pas les capuchons.
+        faceButton.glyphColor = switch (btn) {
+          PadButton.a => const Color(0xFFD8E6DE),
+          PadButton.b => const Color(0xFFE0D2D2),
+          PadButton.x => const Color(0xFFD3DCE8),
+          _ => const Color(0xFFE6DFCE),
+        };
       }
       parts.add(faceButton);
       buttons.add((
@@ -678,6 +755,55 @@ class ControllerScene {
         center: V3(c.dx, c.dy, front + 0.040),
         radius: 0.080,
       ));
+    }
+
+    // --- écran / pavés de la Steam Deck -------------------------------------
+    if (family == ControllerFamily.steamDeck) {
+      // Écran central : une dalle sombre, encadrée.
+      parts.add(extrude(
+        contour: _roundedRect(0.0, 0.128, 0.470, 0.290, 0.030),
+        zFront: front + 0.006,
+        zBack: front + 0.001,
+        front: const Color(0xFF4A4D54),
+        side: const Color(0xFF3A3C42),
+        back: const Color(0xFF2A2C31),
+        name: 'bord écran',
+        smooth: false,
+      ));
+      // Dalle elle-même : presque noire, légèrement brillante.
+      parts.add(extrude(
+        contour: _roundedRect(0.0, 0.128, 0.430, 0.250, 0.022),
+        zFront: front + 0.012,
+        zBack: front + 0.005,
+        front: const Color(0xFF0A0B0D),
+        side: const Color(0xFF1A1C20),
+        back: const Color(0xFF15171A),
+        name: 'écran',
+        smooth: false,
+      ));
+      // Deux pavés tactiles sous les sticks, comme sur la console.
+      for (final sign in [-1.0, 1.0]) {
+        parts.add(extrude(
+          contour: _roundedRect(sign * 0.560, -0.020, 0.158, 0.158, 0.030),
+          zFront: front + 0.005,
+          zBack: front + 0.001,
+          front: const Color(0xFF55585F),
+          side: const Color(0xFF3A3C42),
+          back: const Color(0xFF2A2C31),
+          name: 'bord pavé',
+          smooth: false,
+        ));
+        parts.add(extrude(
+          contour: _roundedRect(sign * 0.560, -0.020, 0.134, 0.134, 0.024),
+          zFront: front + 0.011,
+          zBack: front + 0.004,
+          front: const Color(0xFF23252A),
+          side: const Color(0xFF17191C),
+          back: const Color(0xFF1E2024),
+          name: 'pavé tactile',
+          smooth: false,
+        ));
+      }
     }
 
     // --- pavé tactile / boutons centraux ------------------------------------
@@ -765,18 +891,24 @@ class ControllerScene {
         radius: 0.050,
       ));
     } else {
+      // Bouton guide : sur Xbox c'est un logo rond et clair au centre haut,
+      // sur Switch Pro un petit bouton « Home » à côté de « Capture ».
       final guide = cylinder(
-        center: const Offset(0.0, 0.226),
-        radius: 0.048,
+        center: Offset(0.0, family.isXbox ? 0.196 : 0.226),
+        radius: family.isXbox ? 0.052 : 0.044,
         zBase: front,
-        height: 0.026,
-        top: p.detail ?? p.buttonTop,
+        height: family.isXbox ? 0.030 : 0.020,
+        top: family.isXbox
+            ? Color.lerp(p.shell, Colors.white, 0.55)!
+            : (p.detail ?? p.buttonTop),
         side: p.button,
-        segments: 16,
+        segments: 20,
         name: 'guide',
       );
       guide.button = PadButton.guide;
       parts.add(guide);
+      // Deux petits ronds de part et d'autre, comme les boutons
+      // View / Menu de la manette Xbox.
       for (final (cx, btn, name) in [
         (-0.170, PadButton.select, 'select'),
         (0.170, PadButton.start, 'start'),
@@ -828,10 +960,10 @@ class ControllerScene {
       // Vert, brique, bleu et laiton : les quatre teintes du vrai pad, en
       // version mate.
       return switch (button) {
-        PadButton.a => const Color(0xFF4F7C5E),
-        PadButton.b => const Color(0xFF8E4E4A),
-        PadButton.x => const Color(0xFF40618C),
-        _ => const Color(0xFFA88A45),
+        PadButton.a => const Color(0xFF2F7D4A),
+        PadButton.b => const Color(0xFFA33B3B),
+        PadButton.x => const Color(0xFF2C5FA8),
+        _ => const Color(0xFFC2A02E),
       };
     }
     if (family.isPlayStation) {

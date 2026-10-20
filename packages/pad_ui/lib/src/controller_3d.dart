@@ -1072,6 +1072,68 @@ class _Controller3DPainter extends CustomPainter {
     return f == part.button || part.buttons.contains(f);
   }
 
+  /// Trace une lettre (A, B, X, Y) en traits, sans dépendre d'une police.
+  void _paintLetter(
+    Canvas canvas,
+    String letter,
+    Offset center,
+    double radius,
+    Color color,
+  ) {
+    final w = radius * 1.05;
+    final h = radius * 1.15;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.4, radius * 0.26)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = color;
+
+    final path = Path();
+    // Toutes les coordonnées passent par ces deux conversions : mélanger
+    // repère normalisé et repère écran enverrait le tracé à l'origine.
+    double px(double x) => center.dx + x * w;
+    double py(double y) => center.dy - y * h;
+    void move(double x, double y) => path.moveTo(px(x), py(y));
+    void line(double x, double y) => path.lineTo(px(x), py(y));
+    void curve(double cx, double cy, double ex, double ey) =>
+        path.quadraticBezierTo(px(cx), py(cy), px(ex), py(ey));
+
+    switch (letter) {
+      case 'A':
+        move(-0.55, -0.75);
+        line(0, 0.75);
+        line(0.55, -0.75);
+        move(-0.32, -0.02);
+        line(0.32, -0.02);
+      case 'B':
+        move(-0.45, -0.75);
+        line(-0.45, 0.75);
+        line(0.20, 0.75);
+        curve(0.62, 0.75, 0.62, 0.38);
+        curve(0.62, 0.02, 0.20, 0.02);
+        line(-0.45, 0.02);
+        move(0.20, 0.02);
+        curve(0.66, 0.02, 0.66, -0.36);
+        curve(0.66, -0.75, 0.20, -0.75);
+        line(-0.45, -0.75);
+      case 'X':
+        move(-0.55, -0.75);
+        line(0.55, 0.75);
+        move(0.55, -0.75);
+        line(-0.55, 0.75);
+      case 'Y':
+        // Deux branches qui se rejoignent au milieu, puis une queue courte :
+        // c'est la lettre du vrai pad, pas un « V » barré.
+        move(-0.55, -0.72);
+        line(0, -0.06);
+        line(0.55, -0.72);
+        move(0, -0.06);
+        line(0, 0.72);
+    }
+    canvas.drawPath(path, paint);
+  }
+
   /// Trace un symbole PlayStation en traits épais, à la taille demandée.
   void _paintGlyph(
     Canvas canvas,
@@ -1081,6 +1143,21 @@ class _Controller3DPainter extends CustomPainter {
     required Color color,
     double angle = 0,
   }) {
+    // Les lettres Xbox sont dessinées en traits, comme les symboles
+    // PlayStation : la police de l'interface ne se charge pas toujours dans
+    // les rendus hors écran, et une lettre peinte reste lisible partout.
+    switch (glyph) {
+      case PadGlyph.letterA:
+        return _paintLetter(canvas, 'A', center, radius, color);
+      case PadGlyph.letterB:
+        return _paintLetter(canvas, 'B', center, radius, color);
+      case PadGlyph.letterX:
+        return _paintLetter(canvas, 'X', center, radius, color);
+      case PadGlyph.letterY:
+        return _paintLetter(canvas, 'Y', center, radius, color);
+      default:
+        break;
+    }
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = math.max(1.4, radius * 0.24)
@@ -1092,6 +1169,11 @@ class _Controller3DPainter extends CustomPainter {
     canvas.rotate(angle);
     final r = radius;
     switch (glyph) {
+      case PadGlyph.letterA:
+      case PadGlyph.letterB:
+      case PadGlyph.letterX:
+      case PadGlyph.letterY:
+        break;
       case PadGlyph.circle:
         canvas.drawCircle(Offset.zero, r * 0.88, paint);
       case PadGlyph.cross:
