@@ -21,6 +21,12 @@ class HardwareSource {
   StreamSubscription<PadBridgeEvent>? _events;
   StreamSubscription<void>? _changes;
   bool _starting = false;
+
+  /// Sondage de secours : si l'écouteur natif rate un branchement (certains
+  /// adaptateurs USB ne le signalent pas), on le rattrape ici.
+  Timer? _watchdog;
+  DateTime? lastBatteryAt;
+  DateTime? lastDeviceScanAt;
   Timer? _batteryTimer;
   Timer? _uiTimer;
 
@@ -90,7 +96,7 @@ class HardwareSource {
     }
 
     _batteryTimer = Timer.periodic(
-      const Duration(seconds: 20),
+      const Duration(seconds: 10),
       (_) => unawaited(refreshBattery()),
     );
     _running = true;
@@ -111,6 +117,28 @@ class HardwareSource {
       (_) => unawaited(refreshDevices()),
     );
     await refreshDevices();
+    _startWatchdog();
+  }
+
+  /// Filet de sécurité : toutes les 5 s, on redemande la liste des manettes.
+  /// C'est peu coûteux (un appel natif) et ça évite l'écran figé sur
+  /// « aucune manette » alors qu'une manette vient d'être branchée.
+  void _startWatchdog() {
+    if (_watchdog != null) return;
+    if (!session.autoRefresh) return;
+    _watchdog = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!session.autoRefresh) return;
+      lastDeviceScanAt = DateTime.now();
+      session.lastAutoRefreshAt = lastDeviceScanAt;
+      await refreshDevices();
+      if (session.isReal) await refreshBattery();
+      session.pulse();
+    });
+  }
+
+  void stopWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = null;
   }
 
   Future<void> stop() async {
@@ -153,7 +181,10 @@ class HardwareSource {
     final id = session.activeDeviceId;
     if (id == 0) return;
     final reading = await _bridge.battery(id);
-    if (reading != null) session.setBattery(reading);
+    if (reading != null) {
+      lastBatteryAt = DateTime.now();
+      session.setBattery(reading);
+    }
   }
 
   Future<Map<String, Object?>> platformInfo() => _bridge.platformInfo();
@@ -207,6 +238,7 @@ class HardwareSource {
   int get sequence => _sequence;
 
   Future<void> dispose() async {
+    stopWatchdog();
     await stop();
     await _changes?.cancel();
     _changes = null;

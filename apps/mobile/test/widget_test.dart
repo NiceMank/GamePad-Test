@@ -5,9 +5,16 @@ import 'package:padlab/app/scope.dart';
 import 'package:padlab/features/link/link_screen.dart';
 import 'package:padlab/session/pad_session.dart';
 import 'package:pad_ui/pad_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('l\'app démarre et affiche la manette simulée', (tester) async {
+  setUp(() {
+    // Sans préférence, l'app afficherait l'introduction : ici on teste
+    // l'accueil, donc on part d'un lancement déjà fait.
+    SharedPreferences.setMockInitialValues({'padlab.onboarding.v1': true});
+  });
+
+  testWidgets('l\'app démarre sur l\'accueil', (tester) async {
     await tester.pumpWidget(const PadLabApp());
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('PadLab'), findsWidgets);

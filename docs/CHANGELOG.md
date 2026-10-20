@@ -1,5 +1,64 @@
 # Journal des versions
 
+## 0.5.0 — accueil, logo, actualisation
+
+### Introduction du premier lancement
+
+Quatre écrans, une seule fois, pour répondre à « qu'est-ce que je fais
+maintenant ? » avant de montrer un écran vide :
+
+1. Branchez, c'est tout — le vrai modèle 3D de l'application, pas une image.
+2. Voyez ce qu'elle envoie — entrées qui s'allument, journal horodaté.
+3. Diagnostiquez ses défauts — trace de circularité, dérive, gigue.
+4. Jouez sur PC — téléphone, réseau, manette Xbox virtuelle.
+
+« Passer » reste disponible, le choix est mémorisé, et **Réglages → Revoir
+l'introduction** permet de la relancer. Chaque écran dit la vérité sur les
+limites (batterie Android 12+, manette absente → démonstration).
+
+### Logo
+
+Un seul signe décliné partout : un **P dont le bol est un anneau avec un point
+d'acier** — la lettre et le stick analogique sont la même forme. Lisible à
+32 px.
+
+* Icône d'application (48 → 192 px) + **icône adaptative** Android 8+ avec
+  avant-plan détouré et zone de sécurité respectée.
+* Écran de lancement : fond graphite et marque, pour Android 11 et avant
+  **et** pour Android 12+ (`windowSplashScreenAnimatedIcon`).
+* Marque vectorielle en tête de l'introduction.
+* Tout est généré par `tool/padlab_logo.py` : reproductible, versionnable, pas
+  un PNG opaque déposé à la main.
+
+### Actualisation automatique
+
+* Interrupteur dans Réglages, **actif par défaut**.
+* Manettes relues toutes les 5 s : rattrape un branchement que l'écouteur natif
+  aurait manqué (certains adaptateurs USB ne le signalent pas).
+* Batterie relue toutes les 10 s (au lieu de 20 s).
+* Retour au premier plan : relecture immédiate, manettes + batterie.
+* La ligne « il y a 4 s » avance seule : on voit que ça tourne.
+* Coupée, le sondage s'arrête et le bouton manuel reste.
+
+### Corrections trouvées en revérifiant le parcours
+
+* **Défaut de la 0.4.0** : en mode « Manette », rebasculer sur « Démo »
+  laissait la session marquée « réelle » — le changement n'était appliqué
+  qu'après un `await`. L'état bascule maintenant immédiatement, seule la
+  capture native est asynchrone.
+* Le modèle 3D de l'introduction débordait de 6 px sur un écran 430×900 : il
+  se met désormais à l'échelle de la boîte qui le contient.
+* Les captures de référence enveloppaient mal les écrans sans session
+  (`Directionality` manquant) : corrigé.
+
+### Parcours revérifié, étape par étape
+
+12 tests de bout en bout (`user_journey_test.dart`) : premier lancement,
+introduction, accueil, les cinq onglets, test guidé, analyse, batterie sans
+manette, remap, Link, les trois modes, l'interrupteur d'actualisation, la
+mémoire du choix. Plus 4 tests d'introduction et 8 de la bascule réelle.
+**36 tests** dans `apps/mobile`.
+
 ## 0.4.0 — la première version qui lit une vraie manette
 
 Jusqu'ici, PadLab savait parler aux manettes mais ne le faisait pas : la session

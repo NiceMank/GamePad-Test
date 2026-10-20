@@ -6,9 +6,21 @@
 plus un relais PC qui émule une **manette Xbox 360** pour jouer avec n'importe quelle
 manette connectée au téléphone.
 
-> **0.4.0** — la lecture d'une vraie manette est enfin le chemin principal :
-> branchez une manette, l'application affiche ses entrées, son nom et sa batterie
-> sans manipulation. Voir [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+> **0.5.0** — introduction au premier lancement, logo PadLab (icône + écran de
+> lancement) et actualisation automatique des manettes et de la batterie.
+> Voir [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+
+| Icône | Écran de lancement |
+|---|---|
+| ![](docs/captures/icone.png) | ![](docs/captures/lancement.png) |
+
+L'introduction du premier lancement explique en quatre écrans ce que fait
+l'application — dont le fait que les entrées lues sont réelles, et ce qui
+n'est volontairement pas inventé.
+
+| Étape 1 | Étape 3 | Étape 4 |
+|---|---|---|
+| ![](apps/mobile/test/goldens/onboarding_1_dark.png) | ![](docs/captures/onboarding_3.png) | ![](apps/mobile/test/goldens/onboarding_4_dark.png) |
 
 ```
 apps/mobile       Application Android (et build web de démonstration)

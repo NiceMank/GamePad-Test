@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond de lancement : graphite PadLab. Le thème clair garde le même
+         fond sombre, la marque reste lisible dans les deux cas. -->
+    <color name="padlab_launch_bg">#0B0C0E</color>
+    <color name="padlab_icon_bg">#14161A</color>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ dessine lui-même l'écran de lancement : on lui donne le
+         fond et la marque, au lieu de le laisser afficher une icône nue. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/padlab_launch_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/padlab_launch_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/padlab_icon_bg</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/padlab_launch_bg</item>
+    </style>
+</resources>

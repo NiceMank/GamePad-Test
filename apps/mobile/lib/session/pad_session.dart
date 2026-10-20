@@ -77,6 +77,25 @@ class PadSession extends ChangeNotifier {
   /// Vrai si la source est la manette physique.
   bool get isReal => !simulate;
 
+  /// Actualisation automatique : sondage périodique des manettes et de la
+  /// batterie. Actif par défaut ; le couper laisse le bouton manuel.
+  bool autoRefresh = true;
+
+  /// Dernière actualisation automatique, pour l'afficher dans les réglages.
+  DateTime? lastAutoRefreshAt;
+
+  void setAutoRefresh(bool value) {
+    if (autoRefresh == value) return;
+    autoRefresh = value;
+    if (value) {
+      lastAutoRefreshAt = DateTime.now();
+      hardware?.watchDevices();
+    } else {
+      hardware?.stopWatchdog();
+    }
+    _notify();
+  }
+
   /// Assez d'échantillons pour que le score de santé veuille dire quelque
   /// chose. En matériel, un score calculé sur zéro mesure serait trompeur.
   bool get hasMeasurements =>
@@ -209,11 +228,35 @@ class PadSession extends ChangeNotifier {
     setMode(value ? SourceMode.demo : SourceMode.real);
   }
 
-  /// Change de source et applique le changement tout de suite.
+  /// Change de source.
+  ///
+  /// L'état bascule **tout de suite** : l'interface ne doit jamais afficher
+  /// « réel » une demi-seconde après qu'on a choisi « démo ». Seule la
+  /// capture native, elle, se met en route de façon asynchrone.
   void setMode(SourceMode next) {
     if (_mode == next) return;
     _mode = next;
-    unawaited(_applyMode());
+    switch (next) {
+      case SourceMode.demo:
+        _switchToDemo(note: null);
+        _notify();
+      case SourceMode.real:
+        _switchToReal();
+        _notify();
+        unawaited(_startReal());
+      case SourceMode.auto:
+        unawaited(_applyMode());
+    }
+  }
+
+  /// Démarrage de la capture réelle, avec le repli propre au mode explicite.
+  Future<void> _startReal() async {
+    await startHardware();
+    if (hardwareError != null) {
+      sourceNote = hardwareError;
+      hardware?.watchDevices();
+      _notify();
+    }
   }
 
   /// Applique [_mode] : démarre ou coupe la capture réelle.
@@ -223,7 +266,6 @@ class PadSession extends ChangeNotifier {
   Future<void> _applyMode() async {
     switch (_mode) {
       case SourceMode.demo:
-        await stopHardware();
         _switchToDemo(note: null);
       case SourceMode.real:
         // Choix explicite : on ne retombe jamais en démonstration, même sans
@@ -587,7 +629,16 @@ class PadSession extends ChangeNotifier {
   /// C'est le point d'entrée appelé au démarrage. Il applique le mode choisi
   /// au lieu de rester en simulation.
   Future<void> detectHardware() async {
+    lastAutoRefreshAt = DateTime.now();
     await _applyMode();
+  }
+
+  /// Relecture manuelle (bouton « rafraîchir ») : liste + batterie.
+  Future<void> refreshNow() async {
+    lastAutoRefreshAt = DateTime.now();
+    await hardware?.refreshDevices();
+    await hardware?.refreshBattery();
+    _notify();
   }
 
   /// Réaction à un branchement/débranchement, appelée par la source native.
@@ -599,6 +650,7 @@ class PadSession extends ChangeNotifier {
     bool hardwareLive = false,
   }) {
     hardwareDevices = devices;
+    lastAutoRefreshAt ??= DateTime.now();
     if (_mode != SourceMode.auto) {
       if (devices.isEmpty && isReal) {
         sourceNote = 'Manette débranchée.';

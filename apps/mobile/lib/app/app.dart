@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:pad_ui/pad_ui.dart';
 
 import '../features/analysis/analysis_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
 import '../features/battery/battery_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/tester/tester_screen.dart';
 import '../session/pad_session.dart';
+import 'onboarding_state.dart';
 import 'scope.dart';
 
 class PadLabApp extends StatefulWidget {
@@ -22,6 +24,10 @@ class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
   final PadSession _session = PadSession();
   ThemeMode _themeMode = ThemeMode.system;
 
+  /// `null` tant qu'on ne sait pas : afficher l'accueil puis le retirer
+  /// ferait clignoter l'écran à chaque lancement.
+  bool? _onboarded;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +35,13 @@ class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
     // Première décision : manette branchée → entrées réelles, sinon
     // démonstration annoncée comme telle.
     unawaited(_session.detectHardware());
+    unawaited(_loadOnboarding());
+  }
+
+  Future<void> _loadOnboarding() async {
+    final seen = await OnboardingState.seen();
+    if (!mounted) return;
+    setState(() => _onboarded = seen);
   }
 
   @override
@@ -36,7 +49,9 @@ class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
     // Une manette branchée pendant que l'application était en arrière-plan
     // ne déclenche pas toujours l'écouteur natif : on re-sonde au retour.
     if (state == AppLifecycleState.resumed) {
-      unawaited(_session.detectHardware());
+      // Retour au premier plan : on ne se contente pas de re-sonder, on
+      // relit tout de suite manettes + batterie.
+      unawaited(_session.refreshNow());
     }
   }
 
@@ -45,6 +60,18 @@ class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _session.dispose();
     super.dispose();
+  }
+
+  Future<void> _finishOnboarding() async {
+    setState(() => _onboarded = true);
+    await OnboardingState.markSeen();
+  }
+
+  /// Relance l'introduction depuis les réglages.
+  Future<void> _replayOnboarding() async {
+    await OnboardingState.reset();
+    if (!mounted) return;
+    setState(() => _onboarded = false);
   }
 
   @override
@@ -59,20 +86,42 @@ class _PadLabAppState extends State<PadLabApp> with WidgetsBindingObserver {
         themeMode: _themeMode,
         theme: PadTheme.build(Brightness.light),
         darkTheme: PadTheme.build(Brightness.dark),
-        home: HomeShell(
-          themeMode: _themeMode,
-          onThemeMode: (mode) => setState(() => _themeMode = mode),
-        ),
+        home: _onboarded == null
+            ? const _BootSplash()
+            : _onboarded == false
+            ? OnboardingScreen(onDone: _finishOnboarding)
+            : HomeShell(
+                themeMode: _themeMode,
+                onThemeMode: (mode) => setState(() => _themeMode = mode),
+                onReplayOnboarding: _replayOnboarding,
+              ),
       ),
     );
   }
 }
 
+/// Écran neutre le temps de lire une préférence (~1 image).
+class _BootSplash extends StatelessWidget {
+  const _BootSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(backgroundColor: c.bg);
+  }
+}
+
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.themeMode, required this.onThemeMode});
+  const HomeShell({
+    super.key,
+    required this.themeMode,
+    required this.onThemeMode,
+    required this.onReplayOnboarding,
+  });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeMode;
+  final Future<void> Function() onReplayOnboarding;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -90,7 +139,11 @@ class _HomeShellState extends State<HomeShell> {
       const TesterScreen(),
       const AnalysisScreen(),
       const BatteryScreen(),
-      SettingsScreen(themeMode: widget.themeMode, onThemeMode: widget.onThemeMode),
+      SettingsScreen(
+        themeMode: widget.themeMode,
+        onThemeMode: widget.onThemeMode,
+        onReplayOnboarding: widget.onReplayOnboarding,
+      ),
     ];
 
     final c = context.colors;

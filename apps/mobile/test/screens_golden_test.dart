@@ -10,6 +10,7 @@ import 'package:padlab/features/analysis/analysis_screen.dart';
 import 'package:padlab/features/battery/battery_screen.dart';
 import 'package:padlab/features/home/home_screen.dart';
 import 'package:padlab/features/link/link_screen.dart';
+import 'package:padlab/features/onboarding/onboarding_screen.dart';
 import 'package:padlab/features/remap/remap_screen.dart';
 import 'package:padlab/features/settings/settings_screen.dart';
 import 'package:padlab/features/tester/tester_screen.dart';
@@ -63,6 +64,7 @@ void main() {
     Brightness brightness = Brightness.light,
     bool withSession = true,
     void Function(PadSession)? setup,
+    Future<void> Function()? beforeShot,
   }) async {
     final session = PadSession(mode: setup == null ? SourceMode.demo : SourceMode.real);
     setup?.call(session);
@@ -70,19 +72,19 @@ void main() {
     tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 2.0;
 
-    final widget = withSession
-        ? PadScope(
-            session: session,
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: PadTheme.build(brightness),
-              home: Scaffold(backgroundColor: PadTheme.build(brightness).scaffoldBackgroundColor, body: screen),
-            ),
-          )
-        : screen;
+    final app = MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: PadTheme.build(brightness),
+      home: Scaffold(
+        backgroundColor: PadTheme.build(brightness).scaffoldBackgroundColor,
+        body: screen,
+      ),
+    );
+    final widget = withSession ? PadScope(session: session, child: app) : app;
 
     await tester.pumpWidget(widget);
     await tester.pump(const Duration(milliseconds: 120));
+    if (beforeShot != null) await beforeShot();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
 
     // Démonte l'arbre et arrête la simulation : sinon les minuteurs de la
@@ -134,6 +136,48 @@ void main() {
         ));
       },
     ),
+    skip: !enabled,
+  );
+
+  /// Introduction du premier lancement : quatre étapes, deux thèmes.
+  testWidgets(
+    'onboarding 1',
+    (t) => shoot(
+      t,
+      OnboardingScreen(onDone: () {}),
+      'onboarding_1_dark',
+      brightness: Brightness.dark,
+      withSession: false,
+    ),
+    skip: !enabled,
+  );
+  testWidgets(
+    'onboarding 1 clair',
+    (t) => shoot(
+      t,
+      OnboardingScreen(onDone: () {}),
+      'onboarding_1_light',
+      withSession: false,
+    ),
+    skip: !enabled,
+  );
+  testWidgets(
+    'onboarding 4',
+    (t) async {
+      await shoot(
+        t,
+        OnboardingScreen(onDone: () {}),
+        'onboarding_4_dark',
+        brightness: Brightness.dark,
+        withSession: false,
+        beforeShot: () async {
+          for (var i = 0; i < 3; i++) {
+            await t.tap(find.text('Suivant'));
+            await t.pumpAndSettle();
+          }
+        },
+      );
+    },
     skip: !enabled,
   );
 

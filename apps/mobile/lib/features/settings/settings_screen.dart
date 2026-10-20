@@ -5,10 +5,18 @@ import '../../app/scope.dart';
 import '../../session/pad_session.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, required this.themeMode, required this.onThemeMode});
+  const SettingsScreen({
+    super.key,
+    required this.themeMode,
+    required this.onThemeMode,
+    this.onReplayOnboarding,
+  });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeMode;
+
+  /// Relance l'introduction du premier lancement.
+  final Future<void> Function()? onReplayOnboarding;
 
   @override
   Widget build(BuildContext context) {
@@ -144,11 +152,33 @@ class SettingsScreen extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                       iconSize: 16,
                       color: c.muted,
-                      tooltip: 'Rechercher une manette',
+                      tooltip: 'Rechercher une manette maintenant',
                       icon: const Icon(Icons.refresh_rounded),
-                      onPressed: () => session.detectHardware(),
+                      onPressed: () => session.refreshNow(),
                     ),
                   ],
+                ),
+              ),
+              const Divider(height: 1),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: session.autoRefresh,
+                onChanged: session.setAutoRefresh,
+                title: Text(
+                  'Actualisation automatique',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: c.text,
+                  ),
+                ),
+                subtitle: Text(
+                  session.autoRefresh
+                      ? 'Manettes toutes les 5 s, batterie toutes les 10 s. '
+                            '${_stamp(session.lastAutoRefreshAt)}'
+                      : 'Désactivée : appuyez sur ↻ pour relire maintenant.',
+                  style: TextStyle(fontSize: 10, height: 1.4, color: c.muted),
                 ),
               ),
             ],
@@ -172,19 +202,38 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('PadLab 0.1.0', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: c.text)),
+              Text('PadLab 0.5.0', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: c.text)),
               const SizedBox(height: 4),
               Text(
                 'Test, diagnostic et remapping de manettes. 100 % local, sans compte, '
                 'sans publicité, aucune donnée envoyée.',
                 style: TextStyle(fontSize: 10.5, height: 1.5, color: c.muted),
               ),
+              if (onReplayOnboarding != null) ...[
+                const SizedBox(height: 10),
+                GhostButton(
+                  label: 'Revoir l\'introduction',
+                  icon: Icons.auto_awesome_rounded,
+                  onPressed: () => onReplayOnboarding!(),
+                ),
+              ],
             ],
           ),
         ),
       ],
     );
   }
+}
+
+/// « il y a 4 s » : plus parlant qu'un horodatage absolu.
+String _stamp(DateTime? at) {
+  if (at == null) return 'jamais';
+  final s = DateTime.now().difference(at).inSeconds;
+  if (s < 2) return 'à l\'instant';
+  if (s < 60) return 'il y a $s s';
+  final m = s ~/ 60;
+  if (m < 60) return 'il y a $m min';
+  return 'il y a ${m ~/ 60} h';
 }
 
 class _InfoRow extends StatelessWidget {
