@@ -41,107 +41,115 @@ class ShellPalette {
   static ShellPalette of(ControllerFamily family, Brightness brightness) {
     final light = brightness == Brightness.light;
     switch (family) {
+      // DualSense : plastique clair deux tons, sticks et boutons graphite.
       case ControllerFamily.dualSense:
         return ShellPalette(
-          shell: light ? const Color(0xFFEDEFF4) : const Color(0xFFE4E7EE),
-          shellSide: light ? const Color(0xFFD3D8E2) : const Color(0xFFC6CBD7),
-          shellBack: light ? const Color(0xFFE2E6ED) : const Color(0xFFD5DAE4),
-          well: const Color(0xFFB9BFCB),
-          stick: const Color(0xFF2A2E36),
-          stickTop: const Color(0xFF3A3F49),
-          button: const Color(0xFF3A3F49),
-          buttonTop: const Color(0xFF4B515D),
-          accent: const Color(0xFF35C7FF),
-          detail: Color(0xFF565C68),
+          shell: light ? const Color(0xFFEAEBE8) : const Color(0xFFE3E4E1),
+          shellSide: light ? const Color(0xFFC8CAC6) : const Color(0xFFBFc1BD),
+          shellBack: light ? const Color(0xFFDEDFDB) : const Color(0xFFD6D7D3),
+          well: const Color(0xFFA8ABA7),
+          stick: const Color(0xFF232428),
+          stickTop: const Color(0xFF35363B),
+          button: const Color(0xFF2B2D31),
+          buttonTop: const Color(0xFF3B3D42),
+          accent: const Color(0xFFC8D8E4),
+          detail: const Color(0xFF6B6E73),
         );
+      // DualShock 4 / 3 : noir mat, plastique plus profond que la DualSense.
       case ControllerFamily.dualShock4:
         return const ShellPalette(
-          shell: Color(0xFF2E323A),
-          shellSide: Color(0xFF1E2128),
-          shellBack: Color(0xFF25282F),
-          well: Color(0xFF141619),
-          stick: Color(0xFF131519),
-          stickTop: Color(0xFF23262C),
-          button: Color(0xFF3A3F4A),
-          buttonTop: Color(0xFF4A505C),
-          accent: Color(0xFF3B82F6),
+          shell: Color(0xFF26282C),
+          shellSide: Color(0xFF17181B),
+          shellBack: Color(0xFF1E2024),
+          well: Color(0xFF111214),
+          stick: Color(0xFF131417),
+          stickTop: Color(0xFF24262A),
+          button: Color(0xFF34363C),
+          buttonTop: Color(0xFF43454B),
+          accent: Color(0xFFB9C6D2),
+          detail: Color(0xFF5F646B),
         );
       case ControllerFamily.dualShock3:
         return const ShellPalette(
-          shell: Color(0xFF3A3D45),
-          shellSide: Color(0xFF262930),
-          shellBack: Color(0xFF2D3037),
-          well: Color(0xFF191B21),
-          stick: Color(0xFF1B1D22),
-          stickTop: Color(0xFF2A2E36),
-          button: Color(0xFF454B57),
-          buttonTop: Color(0xFF565D6B),
-          accent: Color(0xFF60A5FA),
+          shell: Color(0xFF32353A),
+          shellSide: Color(0xFF212328),
+          shellBack: Color(0xFF282A2F),
+          well: Color(0xFF16181B),
+          stick: Color(0xFF1B1D21),
+          stickTop: Color(0xFF2A2C31),
+          button: Color(0xFF3E4147),
+          buttonTop: Color(0xFF4E5158),
+          accent: Color(0xFFB9C6D2),
+          detail: Color(0xFF646A72),
         );
+      // Xbox : noir carbone, légèrement bleuté.
       case ControllerFamily.xboxSeries:
       case ControllerFamily.xboxOne:
       case ControllerFamily.xbox360:
         return const ShellPalette(
-          shell: Color(0xFF26292F),
-          shellSide: Color(0xFF15171B),
-          shellBack: Color(0xFF1D2025),
-          well: Color(0xFF101215),
-          stick: Color(0xFF121417),
-          stickTop: Color(0xFF2A2E35),
-          button: Color(0xFF2B2F37),
-          buttonTop: Color(0xFF3A3F49),
-          accent: Color(0xFF52E39B),
-          detail: Color(0xFF585F6A),
+          shell: Color(0xFF212226),
+          shellSide: Color(0xFF131417),
+          shellBack: Color(0xFF1A1B1F),
+          well: Color(0xFF0F1012),
+          stick: Color(0xFF121316),
+          stickTop: Color(0xFF26282C),
+          button: Color(0xFF2A2C31),
+          buttonTop: Color(0xFF383A40),
+          accent: Color(0xFFDADDE1),
+          detail: Color(0xFF575C63),
         );
       case ControllerFamily.switchPro:
         return const ShellPalette(
-          shell: Color(0xFF3C414A),
-          shellSide: Color(0xFF262A31),
-          shellBack: Color(0xFF30343C),
-          well: Color(0xFF1A1D22),
-          stick: Color(0xFF1E2126),
-          stickTop: Color(0xFF33373F),
-          button: Color(0xFF3B4048),
-          buttonTop: Color(0xFF4C525C),
-          accent: Color(0xFFFF5A6E),
-          detail: Color(0xFF69707C),
+          shell: Color(0xFF35373C),
+          shellSide: Color(0xFF232529),
+          shellBack: Color(0xFF2B2D32),
+          well: Color(0xFF181A1D),
+          stick: Color(0xFF1D1F23),
+          stickTop: Color(0xFF313338),
+          button: Color(0xFF3A3C42),
+          buttonTop: Color(0xFF4A4C53),
+          accent: Color(0xFFD6D9DD),
+          detail: Color(0xFF666C74),
         );
       case ControllerFamily.joyCon:
+        // Rouge et bleu Nintendo, version satinée plutôt que fluo.
         return const ShellPalette(
-          shell: Color(0xFFFF6D8A),
-          shellSide: Color(0xFFD14561),
-          shellBack: Color(0xFFE85C79),
-          well: Color(0xFFB93A55),
-          stick: Color(0xFF2A2D33),
-          stickTop: Color(0xFF3A3E46),
-          button: Color(0xFF2F333A),
-          buttonTop: Color(0xFF474D57),
-          accent: Color(0xFF3AC7F0),
+          shell: Color(0xFFC8453F),
+          shellSide: Color(0xFF9E332F),
+          shellBack: Color(0xFFB63D38),
+          well: Color(0xFF8A2C29),
+          stick: Color(0xFF2A2C31),
+          stickTop: Color(0xFF3A3D43),
+          button: Color(0xFF2F3136),
+          buttonTop: Color(0xFF46484F),
+          accent: Color(0xFFCBD6DF),
+          detail: Color(0xFF6E747C),
         );
       case ControllerFamily.steamDeck:
         return const ShellPalette(
-          shell: Color(0xFF30343B),
-          shellSide: Color(0xFF1C1F24),
-          shellBack: Color(0xFF262A30),
-          well: Color(0xFF14171B),
-          stick: Color(0xFF131519),
-          stickTop: Color(0xFF2A2E35),
-          button: Color(0xFF3A3F47),
-          buttonTop: Color(0xFF4A5059),
-          accent: Color(0xFF7B8CFF),
+          shell: Color(0xFF2C2E33),
+          shellSide: Color(0xFF1A1C20),
+          shellBack: Color(0xFF232529),
+          well: Color(0xFF131519),
+          stick: Color(0xFF121417),
+          stickTop: Color(0xFF25272C),
+          button: Color(0xFF36383E),
+          buttonTop: Color(0xFF464850),
+          accent: Color(0xFFBFC9D4),
+          detail: Color(0xFF666C74),
         );
       case ControllerFamily.generic:
         return ShellPalette(
-          shell: light ? const Color(0xFFE9EBEF) : const Color(0xFF34383F),
-          shellSide: light ? const Color(0xFFC9CDD5) : const Color(0xFF1F2227),
-          shellBack: light ? const Color(0xFFDDE0E6) : const Color(0xFF292C32),
-          well: light ? const Color(0xFFB4B9C2) : const Color(0xFF17191E),
-          stick: const Color(0xFF2A2D33),
-          stickTop: const Color(0xFF3B3F47),
-          button: const Color(0xFF3A3F49),
-          buttonTop: const Color(0xFF4B515D),
-          accent: const Color(0xFF5AC8FA),
-          detail: Color(0xFF69707C),
+          shell: light ? const Color(0xFFE6E7E3) : const Color(0xFF2E3035),
+          shellSide: light ? const Color(0xFFC5C7C2) : const Color(0xFF1C1E22),
+          shellBack: light ? const Color(0xFFD9DAD5) : const Color(0xFF26282D),
+          well: light ? const Color(0xFFAFB2AD) : const Color(0xFF15171A),
+          stick: const Color(0xFF26282C),
+          stickTop: const Color(0xFF373A40),
+          button: const Color(0xFF34363B),
+          buttonTop: const Color(0xFF45474D),
+          accent: const Color(0xFFC6D2DD),
+          detail: const Color(0xFF666C74),
         );
     }
   }
@@ -308,6 +316,31 @@ List<Offset> _roundedRect(double cx, double cy, double w, double h, double r) {
   return pts;
 }
 
+/// Bandeau central du DualSense : la coque est claire, mais la zone des
+/// sticks et du pavé est noire. C'est ce contraste qui rend la manette
+/// reconnaissable au premier coup d'œil.
+List<Offset> _centrePanel() {
+  final half = <Offset>[
+    // Bord supérieur : le noir touche la tranche de la coque, comme sur la
+    // vraie DualSense où le bandeau forme la visière entre les épaules.
+    Offset(0.000, 0.248),
+    Offset(0.250, 0.246),
+    Offset(0.330, 0.232),
+    Offset(0.378, 0.176),
+    Offset(0.400, 0.090),
+    Offset(0.412, -0.040),
+    Offset(0.404, -0.190),
+    Offset(0.340, -0.310),
+    Offset(0.186, -0.362),
+    Offset(0.000, -0.372),
+  ];
+  final loop = [
+    ...half,
+    for (var i = half.length - 2; i > 0; i--) Offset(-half[i].dx, half[i].dy),
+  ];
+  return _smooth(loop, 4);
+}
+
 /// Croix directionnelle : quatre branches chanfreinées, pas une croix
 /// « plate » aux angles droits.
 List<Offset> _cross(double cx, double cy, double arm, double thick) {
@@ -368,6 +401,7 @@ class ControllerScene {
       sideBack: Color.lerp(p.shellBack, Colors.black, 0.10),
       back: p.shellBack,
       name: 'corps',
+      smooth: false,
     );
     shell.role = 'shell';
     parts.add(shell);
@@ -447,13 +481,18 @@ class ControllerScene {
 
     // --- sticks ------------------------------------------------------------
     void addStick(Offset center, String name, PadButton click) {
-      // 1. Lunette d'assise : un anneau clair qui « reçoit » le stick.
+      // Sur PlayStation, les sticks sont posés dans le bandeau noir : leur
+      // lunette est sombre, pas claire comme sur une manette Xbox.
+      final seat = family.isPlayStation
+          ? Color.lerp(p.well, Colors.black, 0.35)!
+          : Color.lerp(p.shell, p.shellSide, 0.55)!;
+      // 1. Lunette d'assise : un anneau qui « reçoit » le stick.
       parts.add(cylinder(
         center: center,
         radius: 0.150,
         zBase: front + 0.004,
         height: 0.004,
-        top: Color.lerp(p.shell, p.shellSide, 0.55)!,
+        top: seat,
         side: p.shellSide,
         segments: 24,
         name: 'assise',
@@ -464,7 +503,7 @@ class ControllerScene {
         radius: 0.138,
         zBase: front + 0.007,
         height: 0.006,
-        top: p.well,
+        top: family.isPlayStation ? const Color(0xFF15161A) : p.well,
         side: p.well,
         segments: 24,
         name: 'puits',
@@ -522,10 +561,11 @@ class ControllerScene {
       contour: _cross(layout.dpad.dx, layout.dpad.dy, 0.140, 0.052),
       zFront: front + 0.034,
       zBack: front + 0.004,
-      front: p.detail ?? p.stickTop,
-      side: Color.lerp(p.detail ?? p.stickTop, Colors.black, 0.45)!,
-      back: p.stick,
+      front: const Color(0xFF4A4C51),
+      side: const Color(0xFF2E3034),
+      back: const Color(0xFF26282C),
       name: 'croix',
+      smooth: false,
     );
     dpadPart
       ..buttons = const [
@@ -546,6 +586,23 @@ class ControllerScene {
       segments: 12,
       name: 'pivot',
     ));
+    // Flèches des branches : de petits repères, comme sur le vrai pad.
+    for (final (ax, ay) in [(0.0, 1.0), (0.0, -1.0), (-1.0, 0.0), (1.0, 0.0)]) {
+      final tip = Offset(
+        layout.dpad.dx + ax * 0.086,
+        layout.dpad.dy + ay * 0.086,
+      );
+      parts.add(cylinder(
+        center: tip,
+        radius: 0.016,
+        zBase: front + 0.034,
+        height: 0.002,
+        top: const Color(0xFFC9CCCF),
+        side: const Color(0xFF9A9DA0),
+        segments: 8,
+        name: 'repère',
+      ));
+    }
     for (final (dx, dy, btn) in [
       (0.0, 1.0, PadButton.dpadUp),
       (0.0, -1.0, PadButton.dpadDown),
@@ -581,10 +638,12 @@ class ControllerScene {
       // sur la silhouette quand on regarde de biais.
       parts.add(cylinder(
         center: c,
-        radius: 0.072,
+        radius: 0.068,
         zBase: front - 0.004,
         height: 0.003,
-        top: Color.lerp(p.shell, p.well, 0.42)!,
+        top: family.isPlayStation
+            ? const Color(0xFF141518)
+            : Color.lerp(p.shell, p.well, 0.42)!,
         side: p.shellSide,
         segments: 16,
         name: 'cuvette-bouton',
@@ -623,6 +682,19 @@ class ControllerScene {
 
     // --- pavé tactile / boutons centraux ------------------------------------
     if (family.isPlayStation) {
+      // Plaque noire centrale : elle passe avant le pavé et les sticks.
+      final centre = extrude(
+        contour: _centrePanel(),
+        zFront: front + 0.003,
+        zBack: front - 0.004,
+        front: const Color(0xFF1B1C1F),
+        side: const Color(0xFF141518),
+        back: const Color(0xFF17181B),
+        name: 'bandeau',
+        smooth: false,
+      );
+      parts.insert(parts.length - 1, centre);
+
       const padY = 0.138;
       const padH = 0.186;
       const padW = 0.448;
@@ -630,11 +702,27 @@ class ControllerScene {
         contour: _roundedRect(0.0, padY, padW, padH, 0.042),
         zFront: front + 0.016,
         zBack: front + 0.001,
-        front: Color.lerp(p.shell, p.shellSide, 0.55)!,
-        side: p.shellSide,
+        front: p.shell,
+        side: Color.lerp(p.shell, Colors.black, 0.35)!,
         back: p.shellSide,
         name: 'touchpad',
+        smooth: false,
       ));
+
+      // Grille du haut-parleur : quatre fentes sous le pavé, comme sur la
+      // DualSense.
+      for (var i = -2; i <= 2; i++) {
+        parts.add(extrude(
+          contour: _roundedRect(i * 0.026, 0.006, 0.014, 0.004, 0.002),
+          zFront: front + 0.004,
+          zBack: front + 0.001,
+          front: const Color(0xFF2A2B2F),
+          side: const Color(0xFF1E1F23),
+          back: const Color(0xFF232427),
+          name: 'grille',
+        smooth: false,
+        ));
+      }
       // Le liseré lumineux est tracé par le painter (trait), pas par des
       // barres extrudées : trois rectangles semblaient posés sur le pavé.
 
@@ -669,6 +757,7 @@ class ControllerScene {
         side: p.button,
         back: p.button,
         name: 'muet',
+        smooth: false,
       ));
       buttons.add((
         button: PadButton.guide,
@@ -736,11 +825,13 @@ class ControllerScene {
   /// Couleur du capuchon d'un bouton de façade.
   static Color _buttonFace(PadButton button, ControllerFamily family, ShellPalette p) {
     if (family.isXbox) {
+      // Vert, brique, bleu et laiton : les quatre teintes du vrai pad, en
+      // version mate.
       return switch (button) {
-        PadButton.a => const Color(0xFF2E7D4F),
-        PadButton.b => const Color(0xFF9B2C33),
-        PadButton.x => const Color(0xFF22508F),
-        _ => const Color(0xFF9A7A17),
+        PadButton.a => const Color(0xFF4F7C5E),
+        PadButton.b => const Color(0xFF8E4E4A),
+        PadButton.x => const Color(0xFF40618C),
+        _ => const Color(0xFFA88A45),
       };
     }
     if (family.isPlayStation) {
@@ -753,20 +844,21 @@ class ControllerScene {
   static Color _glyphColor(PadButton button, ControllerFamily family) {
     if (family.isPlayStation) {
       return switch (button) {
-        PadButton.a => const Color(0xFF6EA8FF), // croix
-        PadButton.b => const Color(0xFFFF6B7A), // rond
-        PadButton.x => const Color(0xFFE58BE6), // carré
-        PadButton.y => const Color(0xFF63E6B6), // triangle
-        _ => const Color(0xFFE9EDF5),
+        PadButton.a => const Color(0xFF7E97B8), // croix
+        PadButton.b => const Color(0xFFB4797C), // rond
+        PadButton.x => const Color(0xFFAE8BAA), // carré
+        PadButton.y => const Color(0xFF7FA790), // triangle
+        _ => const Color(0xFFE4E6E9),
       };
     }
     if (family.isXbox) {
+      // Lettres claires, discrètes sur les capuchons colorés.
       return switch (button) {
-        PadButton.a => const Color(0xFFB8F5CE),
-        PadButton.b => const Color(0xFFFFC2C2),
-        PadButton.x => const Color(0xFFBED9FF),
-        PadButton.y => const Color(0xFFFFE9A6),
-        _ => const Color(0xFFE9EDF5),
+        PadButton.a => const Color(0xFFDCE8DF),
+        PadButton.b => const Color(0xFFE8D9D7),
+        PadButton.x => const Color(0xFFD8E0EA),
+        PadButton.y => const Color(0xFFE8E2D2),
+        _ => const Color(0xFFE4E6E9),
       };
     }
     return const Color(0xFFEDF1F8);

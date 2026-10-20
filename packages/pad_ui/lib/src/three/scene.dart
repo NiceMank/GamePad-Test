@@ -13,12 +13,17 @@ class Face {
     this.lit = true,
     this.stroke,
     this.layer = 1,
+    this.flat = false,
   });
 
   final List<int> indices;
   final Color color;
   final bool lit;
   final Color? stroke;
+
+  /// Facette d'un aplat (dessus de bouton, pavé) : elle ne reçoit ni reflet
+  /// spéculaire ni courbure, sinon un plastique mat se lit comme du verre.
+  final bool flat;
 
   /// Ordre de peinture interne à une pièce : 0 = arrière, 1 = flancs,
   /// 2 = avant. Sans ça, la face arrière d'une coque opaque ressortait
@@ -47,6 +52,10 @@ class Part {
 
   /// Anneau de couture (jonction coque haute / coque basse), s'il existe.
   List<V3> seam = const [];
+
+  /// Vrai pour les pièces de révolution (sticks, boutons) : le peintre y
+  /// utilise des normales lissées, ce qui arrondit la pièce.
+  bool smooth = false;
 
   /// Nombre de sommets d'un anneau de contour (extrude en pose trois : avant,
   /// joint, arrière). Le painter s'en sert pour retrouver les anneaux.
@@ -86,6 +95,36 @@ class Part {
   }
 }
 
+/// Normales lissées par sommet (moyenne des normales de facettes, pondérée
+/// par l'aire). Sans elles, un cylindre reste une suite de facettes et la
+/// manette garde un aspect « facetté » de dessin vectoriel.
+List<V3> smoothNormals(List<V3> verts, List<Face> faces) {
+  final out = List<V3>.filled(verts.length, V3.zero);
+  for (final face in faces) {
+    final ind = face.indices;
+    if (ind.length < 3) continue;
+    final a = verts[ind[0]];
+    final b = verts[ind[1]];
+    final c = verts[ind[2]];
+    final ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+    final vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+    // Normale non normalisée : sa longueur vaut deux fois l'aire.
+    final nx = uy * vz - uz * vy;
+    final ny = uz * vx - ux * vz;
+    final nz = ux * vy - uy * vx;
+    for (final i in ind) {
+      final v = out[i];
+      out[i] = V3(v.x + nx, v.y + ny, v.z + nz);
+    }
+  }
+  for (var i = 0; i < out.length; i++) {
+    final v = out[i];
+    final len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    out[i] = len > 0.000001 ? V3(v.x / len, v.y / len, v.z / len) : const V3(0, 0, 1);
+  }
+  return out;
+}
+
 /// Lumière directionnelle fixe dans l'espace caméra.
 const _light = V3(-0.45, -0.65, -0.62);
 
@@ -117,8 +156,9 @@ Part extrude({
   double? zMid,
   String? name,
   double scale = 1,
+  bool smooth = true,
 }) {
-  final part = Part(name: name);
+  final part = Part(name: name)..smooth = smooth;
   final n = contour.length;
   part.ringSize = n;
 
@@ -156,6 +196,7 @@ Part extrude({
       front,
       lit: false,
       layer: 2,
+      flat: true,
     ));
   }
   final centerBack = part.addVertex(V3(
@@ -169,6 +210,7 @@ Part extrude({
       back,
       lit: false,
       layer: 0,
+      flat: true,
     ));
   }
 
@@ -180,12 +222,9 @@ Part extrude({
   for (final (loStart, hiStart, bandColor) in bands) {
     for (var i = 0; i < n; i++) {
       final j = (i + 1) % n;
-      final a = part.verts[loStart + i];
-      final b = part.verts[loStart + j];
-      final normal = V3(-(b.y - a.y), b.x - a.x, 0);
       part.faces.add(Face(
         [loStart + i, loStart + j, hiStart + j, hiStart + i],
-        shade(bandColor, normal),
+        bandColor,
         lit: false,
       ));
     }
@@ -207,7 +246,7 @@ Part cylinder({
   Color? labelColor,
   double labelScale = 1,
 }) {
-  final part = Part(name: name);
+  final part = Part(name: name)..smooth = true;
   final base = part.verts.length;
   for (var i = 0; i < segments; i++) {
     final a = i * 2 * math.pi / segments;
@@ -225,14 +264,13 @@ Part cylinder({
     top,
     lit: false,
     layer: 2,
+    flat: true,
   ));
   for (var i = 0; i < segments; i++) {
     final j = (i + 1) % segments;
-    final angle = (i + 0.5) * 2 * math.pi / segments;
-    final normal = V3(math.cos(angle), math.sin(angle), 0);
     part.faces.add(Face(
       [base + i, base + j, topStart + j, topStart + i],
-      shade(side, normal),
+      side,
       lit: false,
     ));
   }

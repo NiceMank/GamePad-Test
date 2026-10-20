@@ -39,37 +39,40 @@ class PadColors extends ThemeExtension<PadColors> {
   /// Accent principal : un seul, réservé aux données vivantes.
   Color get accent => cyan;
 
+  // Palette « instrument » : graphite neutre et accent acier. Les teintes
+  // sémantiques (batterie, alerte) restent lisibles mais passent en tons
+  // matière — sauge, laiton, brique — au lieu des verts et rouges saturés.
   static const dark = PadColors(
-    bg: Color(0xFF0A0B0D),
-    surface: Color(0xFF121316),
-    card: Color(0xFF17191D),
-    line: Color(0xFF26282E),
-    text: Color(0xFFF2F3F5),
-    muted: Color(0xFF8B9099),
-    cyan: Color(0xFF3DDCC0),
-    blue: Color(0xFF6C9BFF),
-    magenta: Color(0xFFFF7BA8),
-    green: Color(0xFF57D68C),
-    amber: Color(0xFFFFC15E),
-    danger: Color(0xFFFF6B6B),
-    gradient: [Color(0xFF3DDCC0), Color(0xFF6C9BFF)],
+    bg: Color(0xFF0B0C0E),
+    surface: Color(0xFF131417),
+    card: Color(0xFF191A1E),
+    line: Color(0xFF2A2C31),
+    text: Color(0xFFEDEEF0),
+    muted: Color(0xFF8D9199),
+    cyan: Color(0xFF8FAAC9),
+    blue: Color(0xFF7E93B5),
+    magenta: Color(0xFFAF8D9C),
+    green: Color(0xFF86A98F),
+    amber: Color(0xFFC3A470),
+    danger: Color(0xFFC0736D),
+    gradient: [Color(0xFF9AAABB), Color(0xFF6C7C8E)],
     isDark: true,
   );
 
   static const light = PadColors(
-    bg: Color(0xFFF4F4F1),
+    bg: Color(0xFFF2F2EF),
     surface: Color(0xFFFFFFFF),
     card: Color(0xFFFFFFFF),
-    line: Color(0xFFE4E4DE),
-    text: Color(0xFF15171A),
-    muted: Color(0xFF6E7480),
-    cyan: Color(0xFF0E9C88),
-    blue: Color(0xFF3A62D6),
-    magenta: Color(0xFFC22D62),
-    green: Color(0xFF1B8A55),
-    amber: Color(0xFF9A6A00),
-    danger: Color(0xFFB33A3A),
-    gradient: [Color(0xFF0E9C88), Color(0xFF3A62D6)],
+    line: Color(0xFFE3E3DD),
+    text: Color(0xFF16181B),
+    muted: Color(0xFF6C727C),
+    cyan: Color(0xFF4A6482),
+    blue: Color(0xFF44597A),
+    magenta: Color(0xFF7C5565),
+    green: Color(0xFF4E7059),
+    amber: Color(0xFF7A6335),
+    danger: Color(0xFF9B504A),
+    gradient: [Color(0xFF5A6B7D), Color(0xFF7A8797)],
     isDark: false,
   );
 

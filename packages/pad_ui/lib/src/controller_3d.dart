@@ -346,6 +346,14 @@ class _ScenePlan {
       var minZ = double.infinity;
       var maxZ = double.negativeInfinity;
       var maxY = double.negativeInfinity;
+      // Rayon de la pièce : sert à donner une courbure douce à la coque,
+      // comme une surface moulée plutôt qu'une plaque plate.
+      var radius = 0.0001;
+      for (final v in part.verts) {
+        final r = v.x * v.x + v.y * v.y;
+        if (r > radius) radius = r;
+      }
+      radius = math.sqrt(radius);
       for (final v in part.verts) {
         if (v.z < minZ) minZ = v.z;
         if (v.z > maxZ) maxZ = v.z;
@@ -368,13 +376,50 @@ class _ScenePlan {
         offset: offset,
         group: group,
         elevation: maxY,
-      );
+        normals: part.smooth ? smoothNormals(part.verts, part.faces) : const [],
+      )..curved = part.role == 'shell';
       final glow = part.glow;
       for (final face in part.faces) {
         final base = face.color;
+        // Normale de la facette, calculée une fois : le peintre s'en sert
+        // pour l'éclairage (Lambert + reflet) à chaque image.
+        var nx = 0.0, ny = 0.0, nz = 0.0;
+        final ind = face.indices;
+        if (ind.length >= 3) {
+          final a = part.verts[ind[0]];
+          final b = part.verts[ind[1]];
+          final c = part.verts[ind[2]];
+          final ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+          final vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+          nx = uy * vz - uz * vy;
+          ny = uz * vx - ux * vz;
+          nz = ux * vy - uy * vx;
+          final len = math.sqrt(nx * nx + ny * ny + nz * nz);
+          if (len > 0.000001) {
+            nx /= len;
+            ny /= len;
+            nz /= len;
+          }
+        }
+        var cx = 0.0, cy = 0.0;
+        for (final i in ind) {
+          cx += part.verts[i].x;
+          cy += part.verts[i].y;
+        }
+        if (ind.isNotEmpty) {
+          cx /= ind.length;
+          cy /= ind.length;
+        }
+        final curv = math.sqrt(cx * cx + cy * cy) / radius;
+
         faces.add(
           _FacePlan(
             owner: plan,
+            nx: nx,
+            ny: ny,
+            nz: nz,
+            curv: curv.clamp(0.0, 1.0),
+            flat: face.flat,
             offset: offset,
             indices: face.indices,
             layer: face.layer,
@@ -399,7 +444,13 @@ class _PartPlan {
     required this.offset,
     required this.group,
     required this.elevation,
+    required this.normals,
   });
+
+  /// Normales lissées par sommet (pièces de révolution uniquement) : c'est
+  /// ce qui arrondit les sticks et les capuchons au lieu de les laisser
+  /// facettés. Vide pour les pièces plates, éclairées facette par facette.
+  final List<V3> normals;
 
   final Part part;
   final int offset;
@@ -408,6 +459,9 @@ class _PartPlan {
 
   /// Pièce en cours d'appui : sa teinte passe à l'accent.
   bool isOn = false;
+
+  /// Coque : seule pièce à recevoir la courbure de surface.
+  bool curved = false;
 }
 
 /// Une face prête à peindre : indices locaux, teinte au repos et teinte
@@ -415,6 +469,11 @@ class _PartPlan {
 class _FacePlan {
   _FacePlan({
     required this.owner,
+    required this.nx,
+    required this.ny,
+    required this.nz,
+    required this.curv,
+    required this.flat,
     required this.offset,
     required this.indices,
     required this.layer,
@@ -425,6 +484,18 @@ class _FacePlan {
   });
 
   final _PartPlan owner;
+
+  /// Normale unitaire de la facette, en espace objet.
+  final double nx;
+  final double ny;
+  final double nz;
+
+  /// Éloignement du centre de la pièce (0 au centre, 1 au bord) : donne la
+  /// courbure des surfaces moulées.
+  final double curv;
+
+  /// Aplat mat : ni reflet, ni courbure (dessus de bouton, pavé tactile).
+  final bool flat;
   final int offset;
   final List<int> indices;
   final int layer;
@@ -589,9 +660,9 @@ class _Controller3DPainter extends CustomPainter {
     // Ombre au sol : un dégradé radial rend le même flou qu'un MaskFilter
     // sans payer le coût de rasterisation d'un vrai flou.
     final shadowRect = Rect.fromCenter(
-      center: center.translate(0, size.height * 0.40),
-      width: size.width * 0.66,
-      height: size.height * 0.13,
+      center: center.translate(0, size.height * 0.38),
+      width: size.width * 0.92,
+      height: size.height * 0.16,
     );
     canvas.save();
     canvas.translate(shadowRect.center.dx, shadowRect.center.dy);
@@ -601,7 +672,8 @@ class _Controller3DPainter extends CustomPainter {
       Paint()
         ..shader = _cached(_shadow, 1, () {
           return const RadialGradient(
-            colors: [Color(0x66000000), Color(0x00000000)],
+            colors: [Color(0x4D000000), Color(0x1A000000), Color(0x00000000)],
+            stops: [0.0, 0.55, 1.0],
           ).createShader(Rect.fromCircle(center: Offset.zero, radius: 1));
         }),
     );
@@ -665,22 +737,95 @@ class _Controller3DPainter extends CustomPainter {
       return fa.depth.compareTo(fb.depth);
     });
 
-    final fill = Paint()..style = PaintingStyle.fill;
-    // Trait de la même couleur que la facette : masque les micro-fentes
-    // entre facettes adjacentes, très visibles sur les flancs clairs.
-    final seam = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8
-      ..strokeJoin = StrokeJoin.round;
+    // Sans antialiasing sur les facettes : les triangles voisins se
+    // rastérisent jointivement, et l'antialiasing laissait des fentes
+    // sombres le long des arêtes. La silhouette est redessinée plus bas.
+    final fill = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = false;
 
     final path = Path();
+
+    // Lumière fixe dans le repère caméra : en tournant, les facettes
+    // s'éclairent et s'assombrissent comme sur un objet réel, au lieu de
+    // porter une teinte figée calculée une fois pour toutes.
+    const lx = -0.417, ly = 0.560, lz = 0.717;
+    // Demi-vecteur entre la lumière et la caméra (0, 0, 1).
+    final hx = lx, hy = ly, hz = lz + 1.0;
+    final hLen = math.sqrt(hx * hx + hy * hy + hz * hz);
+    final uhx = hx / hLen, uhy = hy / hLen, uhz = hz / hLen;
 
     for (var n = 0; n < order.length; n++) {
       final face = faces[order[n]];
       if (face.culled) continue;
-      final color = face.owner.isOn ? face.lit : face.color;
+      final albedo = face.owner.isOn ? face.lit : face.color;
+
       final indices = face.indices;
       final base = face.offset;
+      final normals = face.owner.normals;
+      var sx = face.nx, sy = face.ny, sz = face.nz;
+      if (normals.isNotEmpty) {
+        // Pièce de révolution : moyenne des normales de sommet, les facettes
+        // se fondent au lieu de marquer des bandes.
+        // Lissage à angle limite : on ne mélange que les normales qui
+        // restent dans le même « morceau » de surface. Sans ce seuil, le
+        // flanc et le dessus d'un stick s'additionnaient et la pièce
+        // devenait blanche.
+        sx = 0;
+        sy = 0;
+        sz = 0;
+        for (var i = 0; i < indices.length; i++) {
+          final nv = normals[indices[i]];
+          final d = nv.x * face.nx + nv.y * face.ny + nv.z * face.nz;
+          if (d > 0.55) {
+            sx += nv.x;
+            sy += nv.y;
+            sz += nv.z;
+          }
+        }
+        if (sx == 0 && sy == 0 && sz == 0) {
+          sx = face.nx;
+          sy = face.ny;
+          sz = face.nz;
+        }
+      }
+
+      // Normale passée dans le repère caméra (même rotation que les sommets).
+      var n1x = sx * proj.cosYaw + sz * proj.sinYaw;
+      var n1z = -sx * proj.sinYaw + sz * proj.cosYaw;
+      var ny = sy * proj.cosPitch - n1z * proj.sinPitch;
+      var nz = sy * proj.sinPitch + n1z * proj.cosPitch;
+
+      // Le maillage n'a pas d'orientation garantie : on éclaire toujours la
+      // face tournée vers l'observateur, sinon la moitié des pièces restait
+      // grise.
+      if (nz < 0) {
+        n1x = -n1x;
+        ny = -ny;
+        nz = -nz;
+      }
+
+      final diff = (n1x * lx + ny * ly + nz * lz).clamp(0.0, 1.0);
+      var spec = (n1x * uhx + ny * uhy + nz * uhz).clamp(0.0, 1.0);
+      // Puissance 16 sans pow : trois multiplications enchaînées.
+      spec *= spec; // 2
+      spec *= spec; // 4
+      spec *= spec; // 8
+      spec *= spec; // 16
+      // Courbure : la coque s'assombrit légèrement vers les bords, comme une
+      // surface bombée sous une lumière venant du haut-gauche.
+      final curve = face.owner.curved
+          ? 1.0 - 0.14 * face.curv * face.curv
+          : 1.0;
+      final k = (0.58 + 0.42 * diff) * curve;
+      final sp = face.flat ? 0.0 : spec * 0.085;
+
+      final color = Color.fromARGB(
+        (albedo.a * 255).round(),
+        ((albedo.r * k + sp) * 255).round().clamp(0, 255),
+        ((albedo.g * k + sp) * 255).round().clamp(0, 255),
+        ((albedo.b * k + sp) * 255).round().clamp(0, 255),
+      );
 
       path.reset();
       path.moveTo(proj._sx[base + indices[0]], proj._sy[base + indices[0]]);
@@ -692,8 +837,6 @@ class _Controller3DPainter extends CustomPainter {
 
       fill.color = color;
       canvas.drawPath(path, fill);
-      seam.color = color;
-      canvas.drawPath(path, seam);
     }
 
     // --- éclairage du dessus ------------------------------------------------
@@ -774,7 +917,7 @@ class _Controller3DPainter extends CustomPainter {
 
         final edge = Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.15
+          ..strokeWidth = 1.7
           ..strokeJoin = StrokeJoin.round
           ..color = Colors.black.withValues(alpha: 0.28);
         canvas.drawPath(outline, edge);
@@ -853,7 +996,7 @@ class _Controller3DPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.0
             ..strokeJoin = StrokeJoin.round
-            ..color = accent.withValues(alpha: 0.85),
+            ..color = const Color(0xFFBFD9EA),
         );
       }
     }
@@ -866,6 +1009,8 @@ class _Controller3DPainter extends CustomPainter {
         final screen = proj.project(c);
         final persp = camera.perspective(proj.depthOf(c));
         final color = part.labelColor ?? const Color(0xFFE9EDF5);
+        // Les lettres sont centrées optiquement : l'ascendante d'une police
+        // sans empattement laisse un vide sous la ligne de base.
         if (part.glyph != null) {
           _paintGlyph(
             canvas,
@@ -896,8 +1041,6 @@ class _Controller3DPainter extends CustomPainter {
               textDirection: TextDirection.ltr,
             )..layout();
           });
-          // Le cache ne stocke que la mise en page ; la couleur est appliquée
-          // par un calque de couleur pour éviter un TextPainter par teinte.
           tp.paint(canvas, screen - Offset(tp.width / 2, tp.height / 2));
         }
       }

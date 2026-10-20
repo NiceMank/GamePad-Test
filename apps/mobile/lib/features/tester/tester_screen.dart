@@ -5,6 +5,7 @@ import 'package:pad_core/pad_core.dart';
 import 'package:pad_ui/pad_ui.dart';
 
 import '../../app/scope.dart';
+import 'guided_test_screen.dart';
 
 class TesterScreen extends StatefulWidget {
   const TesterScreen({super.key});
@@ -24,6 +25,7 @@ class _TesterScreenState extends State<TesterScreen> {
   static const _layoutLabels = ['Android', 'PS', 'Xbox', 'Switch', 'Univ.'];
 
   int _layoutIndex = 1;
+  bool _guided = true;
   PadButton? _lastTapped;
   double _strong = 0.8;
   double _weak = 0.5;
@@ -54,10 +56,27 @@ class _TesterScreenState extends State<TesterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          child: SegmentedTabs(
+            labels: const ['Test guidé', 'Test libre'],
+            index: _guided ? 0 : 1,
+            onChanged: (i) => setState(() => _guided = i == 0),
+          ),
+        ),
+        Expanded(
+          child: _guided ? const GuidedTestScreen(embedded: true) : _free(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _free(BuildContext context) {
     final session = PadScope.of(context);
     final c = context.colors;
     final state = session.state;
-
     final family = ControllerFamily.detect(session.device);
 
     return SingleChildScrollView(
