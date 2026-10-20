@@ -455,7 +455,7 @@ class ControllerScene {
         height: 0.004,
         top: Color.lerp(p.shell, p.shellSide, 0.55)!,
         side: p.shellSide,
-        segments: 34,
+        segments: 24,
         name: 'assise',
       ));
       // 2. Creux sombre : lecture immédiate d'un puits.
@@ -466,7 +466,7 @@ class ControllerScene {
         height: 0.006,
         top: p.well,
         side: p.well,
-        segments: 34,
+        segments: 24,
         name: 'puits',
       ));
       // 3. Fût fin : la tige est bien plus étroite que le capuchon.
@@ -477,7 +477,7 @@ class ControllerScene {
         height: 0.086,
         top: p.stick,
         side: Color.lerp(p.stick, Colors.black, 0.25)!,
-        segments: 20,
+        segments: 16,
         name: 'fût',
       ));
       // 4. Capuchon bombé.
@@ -488,7 +488,7 @@ class ControllerScene {
         height: 0.050,
         top: p.stickTop,
         side: p.stick,
-        segments: 34,
+        segments: 24,
         name: name,
       );
       cap.capCenter = center;
@@ -504,7 +504,7 @@ class ControllerScene {
         height: 0.002,
         top: Color.lerp(p.stick, Colors.black, 0.18)!,
         side: p.stick,
-        segments: 26,
+        segments: 16,
         name: 'creux',
       ));
       buttons.add((
@@ -543,7 +543,7 @@ class ControllerScene {
       height: 0.003,
       top: Color.lerp(p.detail ?? p.stickTop, Colors.black, 0.32)!,
       side: p.stick,
-      segments: 22,
+      segments: 12,
       name: 'pivot',
     ));
     for (final (dx, dy, btn) in [
@@ -586,7 +586,7 @@ class ControllerScene {
         height: 0.003,
         top: Color.lerp(p.shell, p.well, 0.42)!,
         side: p.shellSide,
-        segments: 22,
+        segments: 16,
         name: 'cuvette-bouton',
       ));
       final faceButton = cylinder(
@@ -596,7 +596,7 @@ class ControllerScene {
         height: 0.030,
         top: _buttonFace(btn, family, p),
         side: Color.lerp(_buttonFace(btn, family, p), Colors.black, 0.35)!,
-        segments: 26,
+        segments: 20,
         name: 'face-$btn',
       );
       faceButton.button = btn;
@@ -656,7 +656,7 @@ class ControllerScene {
         height: 0.016,
         top: p.detail ?? p.buttonTop,
         side: p.button,
-        segments: 20,
+        segments: 16,
         name: 'guide',
       );
       guide.button = PadButton.guide;
@@ -683,7 +683,7 @@ class ControllerScene {
         height: 0.026,
         top: p.detail ?? p.buttonTop,
         side: p.button,
-        segments: 20,
+        segments: 16,
         name: 'guide',
       );
       guide.button = PadButton.guide;
@@ -699,7 +699,7 @@ class ControllerScene {
           height: 0.022,
           top: p.detail ?? p.buttonTop,
           side: p.button,
-          segments: 18,
+          segments: 12,
           name: name,
         );
         part.button = btn;

@@ -1,5 +1,5 @@
-
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
@@ -50,64 +50,96 @@ class Controller3D extends StatefulWidget {
   State<Controller3D> createState() => _Controller3DState();
 }
 
-class _Controller3DState extends State<Controller3D> with SingleTickerProviderStateMixin {
-  late double _yaw = widget.initialYaw;
-  late double _pitch = widget.initialPitch;
+/// Orientation et clignotement partagés avec le peintre : pendant une
+/// rotation, seul le canevas se redessine — aucun widget n'est reconstruit.
+class _View extends ChangeNotifier {
+  _View({required this.yaw, required this.pitch});
+
+  double yaw;
+  double pitch;
+  double velocity = 0;
+  bool dragging = false;
+  PadButton? flashing;
+  int flashStart = 0;
+
+  bool get busy => velocity.abs() > 0.002 || flashing != null;
+
+  void bump() => notifyListeners();
+}
+
+class _Controller3DState extends State<Controller3D>
+    with SingleTickerProviderStateMixin {
+  late final _View _view = _View(
+    yaw: widget.initialYaw,
+    pitch: widget.initialPitch,
+  );
   late final Ticker _ticker;
   Duration _last = Duration.zero;
-
-  double _velocity = 0;
-  bool _dragging = false;
 
   ControllerFamily? _sceneFamily;
   Brightness? _sceneBrightness;
   ControllerScene? _scene;
-
-  PadButton? _flashing;
-  int _flashStart = 0;
 
   final List<_Hit> _hits = [];
 
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker(_onTick)..start();
+    _ticker = createTicker(_onTick);
+    // Le ticker ne tourne que lorsqu'il y a quelque chose à animer : au
+    // repos, plus aucune image n'est demandée.
+    if (widget.autoRotate) _startTicker();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
+    _view.dispose();
     super.dispose();
   }
 
+  void _startTicker() {
+    if (!_ticker.isActive) {
+      _last = Duration.zero;
+      _ticker.start();
+    }
+  }
+
   void _onTick(Duration elapsed) {
-    final dt = (elapsed - _last).inMicroseconds / 1e6;
+    final dt = _last == Duration.zero
+        ? 0.0
+        : (elapsed - _last).inMicroseconds / 1e6;
     _last = elapsed;
-    if (dt <= 0 || _dragging) return;
+    if (dt <= 0 || _view.dragging) return;
 
     var dirty = false;
-    if (_velocity.abs() > 0.002) {
-      _yaw += _velocity * dt;
-      _velocity *= math.pow(0.02, dt).toDouble(); // amortissement ~ 1,9 s
+    if (_view.velocity.abs() > 0.002) {
+      _view.yaw += _view.velocity * dt;
+      _view.velocity *= math.pow(0.02, dt).toDouble(); // amortissement ~ 1,9 s
       dirty = true;
     }
     if (widget.autoRotate) {
-      _yaw += dt * 0.35;
+      _view.yaw += dt * 0.35;
       dirty = true;
     }
-    if (_flashing != null &&
-        elapsed.inMilliseconds - _flashStart > 260) {
-      _flashing = null;
+    final flash = _view.flashing;
+    // Horodatage mural : le ticker peut redémarrer, l'extinction du flash ne
+    // doit pas dépendre de son compteur.
+    if (flash != null &&
+        DateTime.now().millisecondsSinceEpoch - _view.flashStart > 260) {
+      _view.flashing = null;
       dirty = true;
     }
-    if (dirty) setState(() {});
+    if (dirty) _view.bump();
+    if (!_view.busy && !widget.autoRotate) _ticker.stop();
   }
 
-  void _reset() => setState(() {
-    _yaw = widget.initialYaw;
-    _pitch = widget.initialPitch;
-    _velocity = 0;
-  });
+  void _reset() {
+    _view.yaw = widget.initialYaw;
+    _view.pitch = widget.initialPitch;
+    _view.velocity = 0;
+    _view.bump();
+  }
 
   ControllerFamily get _family =>
       widget.family ??
@@ -129,10 +161,10 @@ class _Controller3DState extends State<Controller3D> with SingleTickerProviderSt
       }
     }
     if (best == null) return;
-    setState(() {
-      _flashing = best!.button;
-      _flashStart = _last.inMilliseconds;
-    });
+    _view.flashing = best.button;
+    _view.flashStart = DateTime.now().millisecondsSinceEpoch;
+    _view.bump();
+    _startTicker();
     widget.onButtonTap?.call(best.button);
   }
 
@@ -141,7 +173,9 @@ class _Controller3DState extends State<Controller3D> with SingleTickerProviderSt
     final colors = context.colors;
     final family = _family;
     final brightness = Theme.of(context).brightness;
-    if (_scene == null || _sceneFamily != family || _sceneBrightness != brightness) {
+    if (_scene == null ||
+        _sceneFamily != family ||
+        _sceneBrightness != brightness) {
       _scene = ControllerScene.build(family, brightness);
       _sceneFamily = family;
       _sceneBrightness = brightness;
@@ -156,60 +190,72 @@ class _Controller3DState extends State<Controller3D> with SingleTickerProviderSt
             ? math.min(widget.height, outer.maxHeight - hintHeight)
             : widget.height;
         return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: canvasHeight,
-          width: double.infinity,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Cadrage calculé sur l'emprise réelle du modèle : il reste
-              // stable quand on tourne (pas de zoom « respirant »).
-              final fit = _Fit.of(_scene!, constraints.biggest);
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onDoubleTap: _reset,
-                onTapUp: (d) => _tap(d.localPosition),
-                onPanStart: (_) => setState(() {
-                  _dragging = true;
-                  _velocity = 0;
-                }),
-                onPanUpdate: (details) => setState(() {
-                  _yaw += details.delta.dx * 0.011;
-                  _pitch = (_pitch + details.delta.dy * 0.006).clamp(-0.85, 1.35);
-                }),
-                onPanEnd: (details) {
-                  _velocity = details.velocity.pixelsPerSecond.dx * 0.011;
-                  setState(() => _dragging = false);
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: canvasHeight,
+              width: double.infinity,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Cadrage calculé sur l'emprise réelle du modèle : il reste
+                  // stable quand on tourne (pas de zoom « respirant »).
+                  final fit = _Fit.of(_scene!, constraints.biggest);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onDoubleTap: _reset,
+                    onTapUp: (d) => _tap(d.localPosition),
+                    onPanStart: (_) {
+                      _view.dragging = true;
+                      _view.velocity = 0;
+                      _view.bump();
+                    },
+                    onPanUpdate: (details) {
+                      _view.yaw += details.delta.dx * 0.011;
+                      _view.pitch = (_view.pitch + details.delta.dy * 0.006)
+                          .clamp(-0.85, 1.35);
+                      _view.bump();
+                    },
+                    onPanEnd: (details) {
+                      _view.velocity =
+                          details.velocity.pixelsPerSecond.dx * 0.011;
+                      _view.dragging = false;
+                      _view.bump();
+                      _startTicker();
+                    },
+                    // Isolé du reste de l'écran : une rotation ne repeint que le
+                    // modèle, pas les cartes ni le texte autour.
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        size: Size.infinite,
+                        painter: _Controller3DPainter(
+                          scene: _scene!,
+                          state: widget.state,
+                          fit: fit,
+                          accent: colors.cyan,
+                          view: _view,
+                          hits: _hits,
+                          origin: Offset(
+                            constraints.maxWidth / 2,
+                            constraints.maxHeight / 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
                 },
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: _Controller3DPainter(
-                    scene: _scene!,
-                    camera: OrbitCamera(yaw: _yaw, pitch: _pitch),
-                    state: widget.state,
-                    fit: fit,
-                    accent: colors.cyan,
-                    flashing: _flashing,
-                    hits: _hits,
-                    origin: Offset(constraints.maxWidth / 2, constraints.maxHeight / 2),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        if (widget.showHint)
-          SizedBox(
-            height: hintHeight,
-            child: Center(
-              child: Text(
-                'glisser pour tourner · double-tap pour recentrer',
-                style: TextStyle(fontSize: 9.5, color: colors.muted),
               ),
             ),
-          ),
-      ],
+            if (widget.showHint)
+              SizedBox(
+                height: hintHeight,
+                child: Center(
+                  child: Text(
+                    'glisser pour tourner · double-tap pour recentrer',
+                    style: TextStyle(fontSize: 9.5, color: colors.muted),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -259,326 +305,566 @@ class _Hit {
   final double radius;
 }
 
-class _Controller3DPainter extends CustomPainter {
-  _Controller3DPainter({
-    required this.scene,
-    required this.camera,
-    required this.state,
-    required this.fit,
-    required this.accent,
-    required this.flashing,
-    required this.hits,
-    required this.origin,
-  });
+/// Plan de scène : déplie le maillage en une liste de faces avec tout ce
+/// qui ne dépend pas de l'angle de vue (groupe de plan, couche, teinte).
+///
+/// L'ordre de peinture reste celui d'avant — groupe, couche, élévation puis
+/// profondeur — mais il est calculé sur des faces déjà dépliées, et les
+/// faces consécutives de même teinte sont tracées en un seul `Path`.
+class _ScenePlan {
+  _ScenePlan._(this.parts, this.faces);
 
-  final ControllerScene scene;
-  final OrbitCamera camera;
-  final PadState state;
-  final _Fit fit;
-  final Color accent;
-  final PadButton? flashing;
-  final List<_Hit> hits;
-  final Offset origin;
+  final List<_PartPlan> parts;
+  final List<_FacePlan> faces;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = origin.translate(0, fit.centerDy);
+  static ControllerScene? _scene;
+  static int _accentKey = 0;
+  static _ScenePlan? _plan;
 
-    // Halo derrière la manette : donne du volume sans être « néon ».
-    canvas.drawCircle(
-      center.translate(0, -size.height * 0.04),
-      size.height * 0.46,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [accent.withValues(alpha: 0.10), accent.withValues(alpha: 0.0)],
-        ).createShader(Rect.fromCircle(
-          center: center.translate(0, -size.height * 0.04),
-          radius: size.height * 0.46,
-        )),
-    );
-
-    final shadow = Paint()
-      ..color = Colors.black.withValues(alpha: 0.38)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: center.translate(0, size.height * 0.40),
-        width: size.width * 0.62,
-        height: size.height * 0.10,
-      ),
-      shadow,
-    );
-
-    Offset project(V3 p) {
-      final r = camera.rotate(p);
-      final s = camera.perspective(r.z);
-      return Offset(
-        center.dx + r.x * fit.scale * s,
-        center.dy - r.y * fit.scale * s,
-      );
+  static _ScenePlan of(ControllerScene scene, Color accent) {
+    final key = accent.toARGB32();
+    if (identical(scene, _scene) && key == _accentKey && _plan != null) {
+      return _plan!;
     }
+    _scene = scene;
+    _accentKey = key;
+    final built = _build(scene, accent);
+    _plan = _ScenePlan._(built.parts, built.faces);
+    return _plan!;
+  }
 
-    final projected = <List<Offset>>[];
-    final faceList = <({
-      int group,
-      int layer,
-      double elevation,
-      double depth,
-      List<Offset> pts,
-      Color color,
-    })>[];
-
-    // La coque est un prisme convexe : les gros polygones de sa face avant
-    // ne peuvent pas être triés par profondeur moyenne face aux petits
-    // objets posés dessus (un stick passait dessous). On raisonne donc par
-    // plans : ce qui est derrière la coque, la coque, puis ce qui est posé
-    // dessus — et l'ordre des deux premiers groupes s'inverse quand on
-    // regarde la manette de dos.
+  static ({List<_PartPlan> parts, List<_FacePlan> faces}) _build(
+    ControllerScene scene,
+    Color accent,
+  ) {
     const planeZ = ControllerScene.front;
-    final seesFront = camera.rotate(const V3(0, 0, 1)).z > 0;
+    final parts = <_PartPlan>[];
+    final faces = <_FacePlan>[];
+    var offset = 0;
 
-    int groupOf(Part part) {
-      if (part.role == 'shell') return 1;
+    for (final part in scene.parts) {
       var minZ = double.infinity;
       var maxZ = double.negativeInfinity;
+      var maxY = double.negativeInfinity;
       for (final v in part.verts) {
         if (v.z < minZ) minZ = v.z;
         if (v.z > maxZ) maxZ = v.z;
+        if (v.z > maxY) maxY = v.z;
       }
-      if (minZ > planeZ - 0.02) return 2; // posé sur la façade
-      if (maxZ < planeZ - 0.02) return 0; // gâchettes, trappe, vis
-      return 1;
-    }
 
-    for (final part in scene.parts) {
-      final pts = [for (final v in part.verts) project(v)];
-      projected.add(pts);
-      var value = part.button == null ? 0.0 : state.axisForButton(part.button!);
-      for (final b in part.buttons) {
-        value = math.max(value, state.axisForButton(b));
+      final int group;
+      if (part.role == 'shell') {
+        group = 1;
+      } else if (minZ > planeZ - 0.02) {
+        group = 2; // posé sur la façade
+      } else if (maxZ < planeZ - 0.02) {
+        group = 0; // gâchettes, trappe, vis
+      } else {
+        group = 1;
       }
-      final isOn = (part.button != null || part.buttons.isNotEmpty) &&
-          (value >= 0.5 ||
-              (flashing != null &&
-                  (flashing == part.button || part.buttons.contains(flashing))));
-      // Élévation = point le plus haut de la pièce : sur une façade, l'ordre
-      // de peinture correct est du plus bas au plus haut, pas la profondeur
-      // moyenne (une grande plaque fine passait par-dessus la croix).
-      var elevation = double.negativeInfinity;
-      for (final v in part.verts) {
-        if (v.z > elevation) elevation = v.z;
-      }
-      var rawGroup = groupOf(part);
-      // Vue de dos : les détails de façade sont derrière, la coque devant.
-      final group = rawGroup == 1
-          ? 1
-          : (seesFront ? rawGroup : 2 - rawGroup);
+
+      final plan = _PartPlan(
+        part: part,
+        offset: offset,
+        group: group,
+        elevation: maxY,
+      );
+      final glow = part.glow;
       for (final face in part.faces) {
-        var depth = 0.0;
-        for (final i in face.indices) {
-          depth += camera.depthOf(part.verts[i]);
-        }
-        depth /= face.indices.length;
-        faceList.add((
-          group: group,
-          layer: face.layer,
-          elevation: elevation,
-          depth: depth,
-          pts: [for (final i in face.indices) pts[i]],
-          // Un bouton enfoncé s'allume : la pièce prend la teinte d'accent,
-          // comme une LED sous le capuchon.
-          color: isOn ? Color.lerp(face.color, accent, part.glow)! : face.color,
-        ));
+        final base = face.color;
+        faces.add(
+          _FacePlan(
+            owner: plan,
+            offset: offset,
+            indices: face.indices,
+            layer: face.layer,
+            group: group,
+            elevation: maxY,
+            color: base,
+            lit: glow <= 0 ? base : Color.lerp(base, accent, glow)!,
+          ),
+        );
       }
+      parts.add(plan);
+      offset += part.verts.length;
     }
 
-    // Peintre : groupe (derrière / coque / posé sur la façade), puis
-    // hauteur de pose, puis profondeur.
-    faceList.sort((a, b) {
-      final g = a.group.compareTo(b.group);
-      if (g != 0) return g;
-      final l = a.layer.compareTo(b.layer);
-      if (l != 0) return l;
-      if (a.group == 2) {
-        final e = a.elevation.compareTo(b.elevation);
+    return (parts: parts, faces: faces);
+  }
+}
+
+class _PartPlan {
+  _PartPlan({
+    required this.part,
+    required this.offset,
+    required this.group,
+    required this.elevation,
+  });
+
+  final Part part;
+  final int offset;
+  final int group;
+  final double elevation;
+
+  /// Pièce en cours d'appui : sa teinte passe à l'accent.
+  bool isOn = false;
+}
+
+/// Une face prête à peindre : indices locaux, teinte au repos et teinte
+/// allumée, plus sa clé de tri précalculée.
+class _FacePlan {
+  _FacePlan({
+    required this.owner,
+    required this.offset,
+    required this.indices,
+    required this.layer,
+    required this.group,
+    required this.elevation,
+    required this.color,
+    required this.lit,
+  });
+
+  final _PartPlan owner;
+  final int offset;
+  final List<int> indices;
+  final int layer;
+  final int group;
+  final double elevation;
+  final Color color;
+  final Color lit;
+
+  double depth = 0;
+
+  /// Facette réduite à un trait à l'écran : inutile de la peindre.
+  bool culled = false;
+}
+
+/// Projection d'une scène pour une caméra donnée, réutilisée entre les
+/// images (aucune allocation par sommet).
+class _Projection {
+  static final _Projection instance = _Projection._();
+
+  _Projection._();
+
+  late Float64List _sx = Float64List(0);
+  late Float64List _sy = Float64List(0);
+  late Float64List _sz = Float64List(0);
+  int length = 0;
+  Offset center = Offset.zero;
+  double scale = 1;
+
+  double sinYaw = 0, cosYaw = 1, sinPitch = 0, cosPitch = 1;
+  double focal = 3.6;
+
+  void build(
+    ControllerScene scene,
+    OrbitCamera camera,
+    Offset center,
+    double scale,
+  ) {
+    var total = 0;
+    for (final part in scene.parts) {
+      total += part.verts.length;
+    }
+    if (_sx.length < total) {
+      _sx = Float64List(total);
+      _sy = Float64List(total);
+      _sz = Float64List(total);
+    }
+    this.center = center;
+    this.scale = scale;
+    sinYaw = math.sin(camera.yaw);
+    cosYaw = math.cos(camera.yaw);
+    sinPitch = math.sin(camera.pitch);
+    cosPitch = math.cos(camera.pitch);
+    focal = camera.focal;
+
+    var i = 0;
+    for (final part in scene.parts) {
+      for (final v in part.verts) {
+        // Rotation caméra écrite à la main : évite six appels
+        // trigonométriques et deux objets par sommet.
+        final x1 = v.x * cosYaw + v.z * sinYaw;
+        final z1 = -v.x * sinYaw + v.z * cosYaw;
+        final y2 = v.y * cosPitch - z1 * sinPitch;
+        final z2 = v.y * sinPitch + z1 * cosPitch;
+        final s = focal / (focal - z2);
+        _sx[i] = center.dx + x1 * scale * s;
+        _sy[i] = center.dy - y2 * scale * s;
+        _sz[i] = z2;
+        i++;
+      }
+    }
+    length = total;
+  }
+
+  /// Profondeur caméra d'un point isolé (centres de lot, zones cliquables).
+  double depthOf(V3 p) {
+    final z1 = -p.x * sinYaw + p.z * cosYaw;
+    return p.y * sinPitch + z1 * cosPitch;
+  }
+
+  Offset project(V3 p) {
+    final x1 = p.x * cosYaw + p.z * sinYaw;
+    final z1 = -p.x * sinYaw + p.z * cosYaw;
+    final y2 = p.y * cosPitch - z1 * sinPitch;
+    final z2 = p.y * sinPitch + z1 * cosPitch;
+    final s = focal / (focal - z2);
+    return Offset(center.dx + x1 * scale * s, center.dy - y2 * scale * s);
+  }
+}
+
+class _Controller3DPainter extends CustomPainter {
+  _Controller3DPainter({
+    required this.scene,
+    required this.view,
+    required this.state,
+    required this.fit,
+    required this.accent,
+    required this.hits,
+    required this.origin,
+  }) : super(repaint: view);
+
+  final ControllerScene scene;
+
+  /// Orientation courante : lue à chaque image, ce qui permet de tourner
+  /// sans reconstruire le widget.
+  final _View view;
+  final PadState state;
+  final _Fit fit;
+  final Color accent;
+  final List<_Hit> hits;
+  final Offset origin;
+
+  // Caches inter-images : créer un shader ou un TextPainter à chaque image
+  // était l'une des dépenses les plus visibles.
+  static List<int> _order = const [];
+  static final Map<int, Shader> _halo = {};
+  static final Map<int, Shader> _shadow = {};
+  static final Map<String, TextPainter> _labels = {};
+  static final Map<int, Shader> _caps = {};
+
+  static Shader _cached(
+    Map<int, Shader> cache,
+    int key,
+    Shader Function() build,
+  ) {
+    if (cache.length > 64) cache.clear();
+    return cache.putIfAbsent(key, build);
+  }
+
+  static TextPainter _label(String key, TextPainter Function() build) {
+    if (_labels.length > 48) _labels.clear();
+    return _labels.putIfAbsent(key, build);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final camera = OrbitCamera(yaw: view.yaw, pitch: view.pitch);
+    final center = origin.translate(0, fit.centerDy);
+
+    // Halo derrière la manette.
+    final haloRadius = size.height * 0.46;
+    final haloCenter = center.translate(0, -size.height * 0.04);
+    // Shader mis en cache dans un repère unitaire, puis placé par la
+    // transformation du canevas : c'est ce qui garde le dégradé centré.
+    canvas.save();
+    canvas.translate(haloCenter.dx, haloCenter.dy);
+    canvas.scale(haloRadius / 1.0);
+    canvas.drawCircle(
+      Offset.zero,
+      1.0,
+      Paint()
+        ..shader = _cached(_halo, accent.toARGB32(), () {
+          return RadialGradient(
+            colors: [
+              accent.withValues(alpha: 0.10),
+              accent.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromCircle(center: Offset.zero, radius: 1));
+        }),
+    );
+    canvas.restore();
+
+    // Ombre au sol : un dégradé radial rend le même flou qu'un MaskFilter
+    // sans payer le coût de rasterisation d'un vrai flou.
+    final shadowRect = Rect.fromCenter(
+      center: center.translate(0, size.height * 0.40),
+      width: size.width * 0.66,
+      height: size.height * 0.13,
+    );
+    canvas.save();
+    canvas.translate(shadowRect.center.dx, shadowRect.center.dy);
+    canvas.scale(shadowRect.width / 2, shadowRect.height / 2);
+    canvas.drawOval(
+      Rect.fromCircle(center: Offset.zero, radius: 1),
+      Paint()
+        ..shader = _cached(_shadow, 1, () {
+          return const RadialGradient(
+            colors: [Color(0x66000000), Color(0x00000000)],
+          ).createShader(Rect.fromCircle(center: Offset.zero, radius: 1));
+        }),
+    );
+    canvas.restore();
+
+    final proj = _Projection.instance..build(scene, camera, center, fit.scale);
+    final plan = _ScenePlan.of(scene, accent);
+    final seesFront = camera.rotate(const V3(0, 0, 1)).z > 0;
+
+    // État d'appui : une évaluation par pièce, pas par face.
+    for (final part in plan.parts) {
+      part.isOn = _intensity(part.part) >= 0.5 || _isFlashing(part.part);
+    }
+
+    // Profondeur moyenne de chaque face, lue dans la projection déjà faite.
+    // Les facettes vues de chant (moins d'un pixel) sont écartées : leur
+    // liseré anti-fentes débordait sur les faces voisines et hachurait les
+    // flancs.
+    final faces = plan.faces;
+    for (final face in faces) {
+      final indices = face.indices;
+      final base = face.offset;
+      var d = 0.0;
+      var minX = double.infinity, maxX = double.negativeInfinity;
+      var minY = double.infinity, maxY = double.negativeInfinity;
+      for (var i = 0; i < indices.length; i++) {
+        final k = base + indices[i];
+        d += proj._sz[k];
+        final x = proj._sx[k];
+        final y = proj._sy[k];
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      face.depth = d / indices.length;
+      face.culled = (maxX - minX) < 1.0 && (maxY - minY) < 1.0;
+    }
+
+    // Peintre : groupe (derrière / coque / façade), couche, élévation de
+    // pose, puis profondeur — exactement l'ordre qui donnait le rendu
+    // validé, mais sur des faces déjà dépliées.
+    final order = _order.length == faces.length
+        ? _order
+        : (_order = List<int>.generate(
+            faces.length,
+            (i) => i,
+            growable: false,
+          ));
+    order.sort((a, b) {
+      final fa = faces[a];
+      final fb = faces[b];
+      final ga = fa.group == 1 ? 1 : (seesFront ? fa.group : 2 - fa.group);
+      final gb = fb.group == 1 ? 1 : (seesFront ? fb.group : 2 - fb.group);
+      if (ga != gb) return ga.compareTo(gb);
+      if (fa.layer != fb.layer) return fa.layer.compareTo(fb.layer);
+      if (ga == 2) {
+        final e = fa.elevation.compareTo(fb.elevation);
         if (e != 0) return e;
       }
-      return a.depth.compareTo(b.depth);
+      return fa.depth.compareTo(fb.depth);
     });
 
     final fill = Paint()..style = PaintingStyle.fill;
+    // Trait de la même couleur que la facette : masque les micro-fentes
+    // entre facettes adjacentes, très visibles sur les flancs clairs.
     final seam = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8
       ..strokeJoin = StrokeJoin.round;
-    for (final face in faceList) {
-      final path = Path()..addPolygon(face.pts, true);
-      fill.color = face.color;
+
+    final path = Path();
+
+    for (var n = 0; n < order.length; n++) {
+      final face = faces[order[n]];
+      if (face.culled) continue;
+      final color = face.owner.isOn ? face.lit : face.color;
+      final indices = face.indices;
+      final base = face.offset;
+
+      path.reset();
+      path.moveTo(proj._sx[base + indices[0]], proj._sy[base + indices[0]]);
+      for (var i = 1; i < indices.length; i++) {
+        final k = base + indices[i];
+        path.lineTo(proj._sx[k], proj._sy[k]);
+      }
+      path.close();
+
+      fill.color = color;
       canvas.drawPath(path, fill);
-      // Trait de la même couleur : masque les micro-fentes entre facettes
-      // adjacentes, très visibles sur les flancs clairs.
-      seam.color = face.color;
+      seam.color = color;
       canvas.drawPath(path, seam);
     }
 
-    // Éclairage du dessus : un reflet large en haut à gauche et une
-    // occlusion douce en bas. Sans ça, la face avant reste un aplat plat.
-    // Nombre de sommets de l'anneau avant du boîtier (la coque a désormais
-    // trois anneaux : avant, joint, arrière).
-    var contourHalf = projected.first.length ~/ 2;
-    for (final part in scene.parts) {
-      if (part.role == 'shell') {
-        contourHalf = part.seam.isNotEmpty
-            ? part.seam.length
-            : part.verts.length ~/ 2;
-        break;
+    // --- éclairage du dessus ------------------------------------------------
+    final shell = plan.parts.firstWhere(
+      (p) => p.part.role == 'shell',
+      orElse: () => plan.parts.first,
+    );
+    final shellBase = shell.offset;
+    final ring = shell.part.ringSize == 0
+        ? shell.part.verts.length ~/ 2
+        : shell.part.ringSize;
+    if (ring > 0) {
+      // Anneau le plus proche de la caméra : c'est la silhouette visible.
+      var nearest = 0;
+      var nearestDepth = double.negativeInfinity;
+      for (var r = 0; r * ring < shell.part.verts.length; r++) {
+        var depth = 0.0;
+        var n = 0;
+        for (
+          var i = 0;
+          i < ring && r * ring + i < shell.part.verts.length;
+          i++
+        ) {
+          depth += proj._sz[shellBase + r * ring + i];
+          n++;
+        }
+        if (n == 0) break;
+        depth /= n;
+        if (depth > nearestDepth) {
+          nearestDepth = depth;
+          nearest = r;
+        }
       }
-    }
-    final topPath = Path()
-      ..addPolygon(
-        [for (var i = 0; i < contourHalf; i++) projected.first[i]],
-        true,
-      );
-    canvas.save();
-    canvas.clipPath(topPath);
-    final bounds = topPath.getBounds();
-    canvas.drawRect(
-      bounds,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-0.35, -0.75),
-          radius: 1.15,
-          colors: [
-            Colors.white.withValues(alpha: 0.17),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-        ).createShader(bounds),
-    );
-    canvas.drawRect(
-      bounds,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.0),
-            Colors.black.withValues(alpha: 0.16),
-          ],
-          stops: const [0.48, 1.0],
-        ).createShader(bounds),
-    );
-    canvas.restore();
 
-    // Arête du corps : on ne trace que l'anneau le plus proche de la
-    // caméra. Tracer aussi l'anneau arrière dessinait un faux liseré au
-    // milieu de la face avant (il est physiquement masqué).
-    final bodyPart = scene.parts.firstWhere(
-      (part) => part.role == 'shell',
-      orElse: () => scene.parts.first,
-    );
-    final bodyPts = projected[scene.parts.indexOf(bodyPart)];
-    final ringSize = bodyPart.ringSize == 0
-        ? bodyPts.length ~/ 2
-        : bodyPart.ringSize;
-    final ringCount = ringSize == 0 ? 1 : bodyPts.length ~/ ringSize;
-    var nearest = 0;
-    var nearestDepth = double.negativeInfinity;
-    for (var r = 0; r < ringCount; r++) {
-      var depth = 0.0;
-      for (var i = 0; i < ringSize; i++) {
-        depth += camera.depthOf(bodyPart.verts[r * ringSize + i]);
+      final outline = Path();
+      final startIdx = shellBase + nearest * ring;
+      var count = 0;
+      for (
+        var i = 0;
+        i < ring && startIdx + i < shellBase + shell.part.verts.length;
+        i++
+      ) {
+        final x = proj._sx[startIdx + i];
+        final y = proj._sy[startIdx + i];
+        if (i == 0) {
+          outline.moveTo(x, y);
+        } else {
+          outline.lineTo(x, y);
+        }
+        count++;
       }
-      depth /= ringSize;
-      if (depth > nearestDepth) {
-        nearestDepth = depth;
-        nearest = r;
-      }
-    }
-    final edge = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.15
-      ..color = Colors.black.withValues(alpha: 0.28)
-      ..strokeJoin = StrokeJoin.round;
-    final outlinePath = Path()
-      ..addPolygon(
-        [
-          for (var i = 0; i < ringSize; i++) bodyPts[nearest * ringSize + i],
-        ],
-        true,
-      );
-    canvas.drawPath(outlinePath, edge);
+      if (count > 2) {
+        outline.close();
 
-    // Liseré lumineux : la lumière accroche l'arête du boîtier. Tracé à
-    // l'intérieur du contour (clip), il ne déborde pas de la silhouette.
-    canvas.save();
-    canvas.clipPath(outlinePath);
-    canvas.drawPath(
-      outlinePath,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..color = Colors.white.withValues(alpha: 0.34),
-    );
-    canvas.restore();
+        canvas.save();
+        canvas.clipPath(outline);
+        final bounds = outline.getBounds();
+        canvas.drawRect(
+          bounds,
+          Paint()
+            ..shader = const RadialGradient(
+              center: Alignment(-0.35, -0.75),
+              radius: 1.15,
+              colors: [Color(0x2BFFFFFF), Color(0x00FFFFFF)],
+            ).createShader(bounds),
+        );
+        canvas.drawRect(
+          bounds,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x00000000), Color(0x29000000)],
+              stops: [0.48, 1.0],
+            ).createShader(bounds),
+        );
+        canvas.restore();
 
-    // Capuchons de sticks : dégradé radial pour donner la rotondité, sinon
-    // ils se lisent comme de simples disques sombres. Ignorés quand la
-    // manette est vue de dos, sinon ils flottent sur la coque arrière.
-    for (var p = 0; p < scene.parts.length; p++) {
-      final part = scene.parts[p];
-      final cap = part.capCenter;
-      if (cap == null) continue;
-      if (camera.depthOf(V3(cap.dx, cap.dy, part.capZ)) < 0.05) continue;
-      final z = part.capZ;
-      final centerScreen = project(V3(cap.dx, cap.dy, z));
-      final edge = project(V3(cap.dx + part.capRadius, cap.dy, z));
-      final radius = (edge - centerScreen).distance;
-      final rect = Rect.fromCircle(center: centerScreen, radius: radius * 1.02);
-      canvas.drawOval(
-        rect,
-        Paint()
-          ..shader = RadialGradient(
-            center: const Alignment(-0.35, -0.45),
-            colors: [
-              Colors.white.withValues(alpha: 0.20),
-              Colors.white.withValues(alpha: 0.02),
-              Colors.black.withValues(alpha: 0.30),
-            ],
-            stops: const [0.0, 0.55, 1.0],
-          ).createShader(rect),
-      );
-    }
-
-    // Liseré lumineux du pavé tactile (DualSense / DualShock) : un trait
-    // continu qui suit son pourtour.
-    final touch = scene.parts.where((part) => part.name == 'touchpad');
-    if (touch.isNotEmpty) {
-      final part = touch.first;
-      final ringSize = part.ringSize;
-      final pts = projected[scene.parts.indexOf(part)];
-      canvas.drawPath(
-        Path()
-          ..addPolygon(
-            [for (var i = 0; i < ringSize; i++) pts[i]],
-            true,
-          ),
-        Paint()
+        final edge = Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0
+          ..strokeWidth = 1.15
           ..strokeJoin = StrokeJoin.round
-          ..color = accent.withValues(alpha: 0.85),
-      );
+          ..color = Colors.black.withValues(alpha: 0.28);
+        canvas.drawPath(outline, edge);
+
+        canvas.save();
+        canvas.clipPath(outline);
+        canvas.drawPath(
+          outline,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0
+            ..color = Colors.white.withValues(alpha: 0.34),
+        );
+        canvas.restore();
+      }
     }
 
-    // Symboles des boutons de façade : tracés vectoriels (un « ○ » de police
-    // n'a ni la graisse ni l'alignement d'un vrai symbole imprimé).
-    final facing = camera.rotate(const V3(0, 0, 1)).z;
-    if (facing > 0.12) {
+    // --- capuchons de sticks -------------------------------------------------
+    final frontFacing = camera.rotate(const V3(0, 0, 1)).z;
+    if (frontFacing > 0.12) {
+      for (final part in scene.parts) {
+        final cap = part.capCenter;
+        if (cap == null) continue;
+        final at = V3(cap.dx, cap.dy, part.capZ);
+        if (proj.depthOf(at) < 0.05) continue;
+        final centerScreen = proj.project(at);
+        final edge = proj.project(
+          V3(cap.dx + part.capRadius, cap.dy, part.capZ),
+        );
+        final radius = (edge - centerScreen).distance;
+        if (radius < 1) continue;
+        final r = radius * 1.02;
+        canvas.save();
+        canvas.translate(centerScreen.dx, centerScreen.dy);
+        canvas.scale(r);
+        canvas.drawOval(
+          Rect.fromCircle(center: Offset.zero, radius: 1),
+          Paint()
+            ..shader = _cached(_caps, 1, () {
+              return const RadialGradient(
+                center: Alignment(-0.35, -0.45),
+                colors: [
+                  Color(0x33FFFFFF),
+                  Color(0x05000000),
+                  Color(0x4D000000),
+                ],
+                stops: [0.0, 0.55, 1.0],
+              ).createShader(Rect.fromCircle(center: Offset.zero, radius: 1));
+            }),
+        );
+        canvas.restore();
+      }
+    }
+
+    // --- liseré lumineux du pavé tactile ------------------------------------
+    final touch = scene.parts.where((part) => part.name == 'touchpad');
+    if (touch.isNotEmpty && frontFacing > 0.2) {
+      final part = touch.first;
+      final index = scene.parts.indexOf(part);
+      final base = plan.parts[index].offset;
+      final ringSize = part.ringSize;
+      if (ringSize > 0) {
+        final ringPath = Path();
+        for (var i = 0; i < ringSize; i++) {
+          final x = proj._sx[base + i];
+          final y = proj._sy[base + i];
+          if (i == 0) {
+            ringPath.moveTo(x, y);
+          } else {
+            ringPath.lineTo(x, y);
+          }
+        }
+        canvas.drawPath(
+          ringPath..close(),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
+            ..strokeJoin = StrokeJoin.round
+            ..color = accent.withValues(alpha: 0.85),
+        );
+      }
+    }
+
+    // --- symboles des boutons ------------------------------------------------
+    if (frontFacing > 0.12) {
       for (final part in scene.parts) {
         if (part.glyph == null && part.label == null) continue;
         final c = _centroid(part);
-        final screen = project(c);
-        final persp = camera.perspective(camera.rotate(c).z);
+        final screen = proj.project(c);
+        final persp = camera.perspective(proj.depthOf(c));
         final color = part.labelColor ?? const Color(0xFFE9EDF5);
         if (part.glyph != null) {
           _paintGlyph(
@@ -587,39 +873,60 @@ class _Controller3DPainter extends CustomPainter {
             screen,
             radius: 0.036 * fit.scale * persp,
             color: color,
-            angle: 0,
           );
         } else {
-          final tp = TextPainter(
-            text: TextSpan(
-              text: part.label,
-              style: TextStyle(
-                fontFamily: PadType.body,
-                fontSize: (0.072 * fit.scale * persp * part.labelScale)
-                    .clamp(7.0, 30.0),
-                fontWeight: FontWeight.w800,
-                color: color,
-                height: 1,
+          final fontSize = (0.072 * fit.scale * persp * part.labelScale).clamp(
+            7.0,
+            30.0,
+          );
+          final key =
+              '${part.label}|${(fontSize * 2).round()}|${color.toARGB32()}';
+          final tp = _label(key, () {
+            return TextPainter(
+              text: TextSpan(
+                text: part.label,
+                style: TextStyle(
+                  fontFamily: PadType.body,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  height: 1,
+                ),
               ),
-            ),
-            textDirection: TextDirection.ltr,
-          )..layout();
+              textDirection: TextDirection.ltr,
+            )..layout();
+          });
+          // Le cache ne stocke que la mise en page ; la couleur est appliquée
+          // par un calque de couleur pour éviter un TextPainter par teinte.
           tp.paint(canvas, screen - Offset(tp.width / 2, tp.height / 2));
         }
       }
     }
 
-    // Zones cliquables (invisibles) : un appui sur le modèle renvoie le
-    // bouton logique correspondant.
+    // --- zones cliquables ----------------------------------------------------
     hits.clear();
     for (final entry in scene.buttons) {
-      // Un bouton revenu de l'autre côté du boîtier ne doit pas capter le
-      // clic : sinon on « appuie » sur la face cachée.
-      if (camera.depthOf(entry.center) < -0.02) continue;
-      final screen = project(entry.center);
-      final persp = camera.perspective(camera.rotate(entry.center).z);
+      if (proj.depthOf(entry.center) < -0.02) continue;
+      final screen = proj.project(entry.center);
+      final persp = camera.perspective(proj.depthOf(entry.center));
       hits.add(_Hit(entry.button, screen, entry.radius * fit.scale * persp));
     }
+  }
+
+  double _intensity(Part part) {
+    var value = part.button == null ? 0.0 : state.axisForButton(part.button!);
+    for (final b in part.buttons) {
+      value = math.max(value, state.axisForButton(b));
+    }
+    return value;
+  }
+
+  PadButton? get flashing => view.flashing;
+
+  bool _isFlashing(Part part) {
+    final f = flashing;
+    if (f == null) return false;
+    return f == part.button || part.buttons.contains(f);
   }
 
   /// Trace un symbole PlayStation en traits épais, à la taille demandée.
@@ -678,13 +985,13 @@ class _Controller3DPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_Controller3DPainter old) =>
-      old.camera.yaw != camera.yaw ||
-      old.camera.pitch != camera.pitch ||
+      !identical(old.scene, scene) ||
       old.state != state ||
-      old.flashing != flashing ||
-      old.fit.scale != fit.scale;
+      old.fit.scale != fit.scale ||
+      old.fit.centerDy != fit.centerDy ||
+      old.accent != accent ||
+      !identical(old.view, view);
 }
-
 
 /// Point d'entrée de test : construit le painter avec un cadrage explicite.
 @visibleForTesting
@@ -694,13 +1001,14 @@ CustomPainter debugControllerPainter({
   required PadState state,
   required Size size,
   required Offset origin,
-}) => _Controller3DPainter(
-  scene: scene,
-  camera: camera,
-  state: state,
-  fit: _Fit.of(scene, size),
-  accent: const Color(0xFF22E6FF),
-  flashing: null,
-  hits: [],
-  origin: origin,
-);
+}) {
+  return _Controller3DPainter(
+    scene: scene,
+    view: _View(yaw: camera.yaw, pitch: camera.pitch),
+    state: state,
+    fit: _Fit.of(scene, size),
+    accent: const Color(0xFF22E6FF),
+    hits: [],
+    origin: origin,
+  );
+}

@@ -12,12 +12,12 @@ void main() {
     binding.platformDispatcher.views.first.physicalSize = const Size(900, 700);
     binding.platformDispatcher.views.first.devicePixelRatio = 2;
 
-    for (final (family, yaw, pitch) in [
+    for (final (i, (family, yaw, pitch)) in [
       (ControllerFamily.dualSense, -0.42, 0.38),
       (ControllerFamily.dualSense, 0.0, 0.0),
       (ControllerFamily.dualSense, 3.10, 0.10),
       (ControllerFamily.xboxSeries, -0.42, 0.38),
-    ]) {
+    ].indexed) {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       canvas.drawRect(
@@ -35,7 +35,7 @@ void main() {
       painter.paint(canvas, const Size(900, 700));
       final image = recorder.endRecording().toImageSync(900, 700);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      final name = '/tmp/scene_${yaw.toStringAsFixed(2)}_${pitch.toStringAsFixed(2)}.png';
+      final name = '/tmp/shots/scene_$i.png';
       File(name).writeAsBytesSync(data!.buffer.asUint8List());
       // ignore: avoid_print
       print('écrit $name');
