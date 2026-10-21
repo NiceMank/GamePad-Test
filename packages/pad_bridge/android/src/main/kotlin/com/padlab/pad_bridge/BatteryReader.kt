@@ -108,7 +108,7 @@ class BatteryReader(private val context: Context) {
         official(device)?.let { return it }
 
         // 2. Nœud sysfs du noyau.
-        sysfs(device)?.let { return it }
+        sysfs()?.let { return it }
 
         return null
     }
@@ -136,24 +136,25 @@ class BatteryReader(private val context: Context) {
 
     /**
      * Le noyau expose une entrée `power_supply` par manette sans fil :
-     * `hid-<mac>-battery`, `ps-controller-battery-<mac>`… On lit `capacity`,
-     * et `status` quand il existe.
+     * « hid-<adresse>-battery », « ps-controller-battery-<adresse> »…
+     * On lit `capacity`, et `status` quand il existe.
+     *
+     * Plusieurs manettes peuvent être branchées : on prend le nœud modifié le
+     * plus récemment, qui correspond à celle en train de communiquer. En
+     * l'absence de certitude, mieux vaut une valeur plausible qu'aucune —
+     * mais elle est alors annoncée comme telle.
      */
-    private fun sysfs(device: InputDevice): Entry? {
-        val base = File("/sys/class/power_supply")
-        val entries = base.listFiles() ?: return null
-        val candidates = entries.filter { it.isDirectory && it.name.endsWith("-battery") }
-        if (candidates.isEmpty()) return null
-
-        val address = bluetoothAddress(device)?.uppercase()
-        val chosen = when {
-            address != null ->
-                candidates.firstOrNull { it.name.uppercase().contains(address) }
-                    ?: candidates.firstOrNull()
-            candidates.size == 1 -> candidates.first()
-            else -> candidates.first()
+    private fun sysfs(): Entry? {
+        val dir = File("/sys/class/power_supply")
+        val nodes = try {
+            dir.listFiles()?.filter { it.isDirectory && it.name.endsWith("-battery") }
+                ?: return null
+        } catch (_: Throwable) {
+            return null
         }
+        if (nodes.isEmpty()) return null
 
+        val chosen = nodes.maxByOrNull { it.lastModified() } ?: return null
         val percent = readInt(File(chosen, "capacity"))?.toDouble()?.coerceIn(0.0, 100.0)
             ?: return null
         val status = when (readText(File(chosen, "status"))?.trim()?.lowercase()) {
@@ -164,18 +165,6 @@ class BatteryReader(private val context: Context) {
             else -> "unknown"
         }
         return Entry(percent, status, "kernel", System.currentTimeMillis())
-    }
-
-    /**
-     * Adresse Bluetooth de la manette, quand le système accepte de la donner.
-     * Méthode dépréciée mais toujours renseignée sur beaucoup d'appareils ;
-     * en cas d'échec on retombe simplement sur le premier nœud trouvé.
-     */
-    @Suppress("DEPRECATION")
-    private fun bluetoothAddress(device: InputDevice): String? = try {
-        device.bluetoothAddress
-    } catch (_: Throwable) {
-        null
     }
 
     private fun readText(file: File): String? = try {
