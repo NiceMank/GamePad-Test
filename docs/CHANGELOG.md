@@ -1,5 +1,22 @@
 # Journal des versions
 
+## 0.6.1 — les détails qui trahissaient
+
+Trois défauts vus sur les rendus de la 0.6.0, corrigés.
+
+- **Les touches vues s'affichaient en barres pleine largeur.** Un `Container`
+  porteur d'un `alignment` s'étire sur la place disponible : dans un `Wrap`,
+  chaque touche prenait toute la ligne, avec une lettre au milieu. Ce sont
+  maintenant des pastilles compactes alignées sur une grille.
+- **Le sous-titre de l'actualisation finissait par « · jamais ».** La phrase
+  est construite selon ce qu'on sait, au lieu de coller un horodatage vide.
+- **L'interrupteur** est ramené à sa taille réelle et son contraste ne laisse
+  plus croire qu'il est éteint quand il est allumé.
+- **Angle de repos de la manette** adouci : le modèle est posé face à vous,
+  légèrement plongé, au lieu d'être penché.
+- La version affichée dans les réglages n'est plus recopiée en dur — elle y
+  était restée en 0.5.0 pendant une version.
+
 ## 0.6.0 — batterie lue pour de vrai, 3D immobile, nettoyage
 
 Retour d'usage après la 0.5.0 : « des trucs marchaient mais on dirait un
@@ -113,7 +130,7 @@ d'acier** — la lettre et le stick analogique sont la même forme. Lisible à
 introduction, accueil, les cinq onglets, test guidé, analyse, batterie sans
 manette, remap, Link, les trois modes, l'interrupteur d'actualisation, la
 mémoire du choix. Plus 4 tests d'introduction et 8 de la bascule réelle.
-**36 tests** dans `apps/mobile`.
+Soit **32 tests** dans `apps/mobile`.
 
 ## 0.4.0 — la première version qui lit une vraie manette
 

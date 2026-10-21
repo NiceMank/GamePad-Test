@@ -76,8 +76,7 @@ class SettingsScreen extends StatelessWidget {
             _SwitchRow(
               title: 'Actualisation automatique',
               subtitle: session.autoRefresh
-                  ? 'Manettes toutes les 5 s · batterie toutes les 10 s · '
-                        '${_stamp(session.lastAutoRefreshAt)}'
+                  ? _autoRefreshLabel(session.lastAutoRefreshAt)
                   : 'Appuyez sur ↻ dans l\'onglet Manette pour relire.',
               value: session.autoRefresh,
               onChanged: session.setAutoRefresh,
@@ -91,7 +90,7 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 10),
         _SettingsCard(
           children: [
-            const _InfoRow(label: 'Version', value: '0.6.0'),
+            const _InfoRow(label: 'Version', value: PadVersion.label),
             const _Divider(),
             Padding(
               padding: const EdgeInsets.only(top: 10),
@@ -307,7 +306,14 @@ class _SwitchRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Switch(value: value, onChanged: onChanged),
+        SizedBox(
+          height: 32,
+          child: Switch(
+            value: value,
+            onChanged: onChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
       ],
     );
   }
@@ -325,6 +331,14 @@ class _Divider extends StatelessWidget {
 }
 
 /// « il y a 4 s » : plus parlant qu'un horodatage absolu.
+String _autoRefreshLabel(DateTime? at) {
+  const cadence = 'Manettes toutes les 5 s · batterie toutes les 10 s';
+  if (at == null) return cadence;
+  final s = DateTime.now().difference(at).inSeconds;
+  if (s < 60) return '$cadence · à l\'instant';
+  return '$cadence · ${_stamp(at)}';
+}
+
 String _stamp(DateTime? at) {
   if (at == null) return 'jamais';
   final s = DateTime.now().difference(at).inSeconds;
@@ -363,4 +377,16 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Version de l'application, tenue à un seul endroit.
+///
+/// Elle était recopiée dans l'écran de réglages : elle y est restée en 0.5.0
+/// après la sortie suivante. Ce n'est pas la panacée (un vrai build la lirait
+/// depuis `package_info_plus`), mais elle ne peut plus diverger du pubspec
+/// sans qu'on le voie dans le diff.
+class PadVersion {
+  const PadVersion._();
+
+  static const label = '0.6.1';
 }

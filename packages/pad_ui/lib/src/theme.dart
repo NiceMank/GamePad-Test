@@ -233,11 +233,13 @@ class PadTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? (c.isDark ? const Color(0xFF0A0B0D) : Colors.white)
-              : c.muted,
+              ? c.cyan
+              : (c.isDark ? const Color(0xFF3A3F47) : const Color(0xFFB3B8BF)),
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? c.cyan : c.line,
+          (s) => s.contains(WidgetState.selected)
+              ? c.cyan.withValues(alpha: 0.30)
+              : c.line,
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),

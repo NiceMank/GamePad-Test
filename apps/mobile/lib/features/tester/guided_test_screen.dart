@@ -548,34 +548,55 @@ class _Coverage extends StatelessWidget {
             runSpacing: 6,
             children: [
               for (final k in _keys)
-                Container(
-                  constraints: const BoxConstraints(minWidth: 30),
-                  height: 30,
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: seen.contains(k.$1)
-                        ? c.green.withValues(alpha: 0.14)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: seen.contains(k.$1)
-                          ? c.green.withValues(alpha: 0.5)
-                          : c.line,
-                    ),
-                  ),
-                  child: Text(
-                    k.$2,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: seen.contains(k.$1) ? c.green : c.muted,
-                    ),
-                  ),
+                _KeyChip(
+                  label: k.$2,
+                  seen: seen.contains(k.$1),
+                  c: c,
                 ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Une touche vue, en pastille compacte.
+///
+/// Un `Container` porteur d'un `alignment` s'étire sur toute la largeur
+/// disponible : dans un `Wrap`, les touches devenaient des barres pleine
+/// largeur avec une seule lettre au milieu. La largeur est donc imposée.
+class _KeyChip extends StatelessWidget {
+  const _KeyChip({required this.label, required this.seen, required this.c});
+
+  final String label;
+  final bool seen;
+  final PadColors c;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: label.length > 2 ? 50 : 36,
+      height: 30,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: seen ? c.green.withValues(alpha: 0.14) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: seen ? c.green.withValues(alpha: 0.5) : c.line,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+              color: seen ? c.green : c.muted,
+            ),
+          ),
+        ),
       ),
     );
   }
