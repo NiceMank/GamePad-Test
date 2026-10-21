@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  *  1. `getBatteryState()` (Android 12+) — la voie officielle, quand la manette
  *     la renseigne. Beaucoup ne le font pas.
- *  2. `/sys/class/power_supply/*-battery/capacity` — le noyau expose le niveau
+ *  2. Les noeuds « -battery » de /sys/class/power_supply — le noyau expose le niveau
  *     des manettes HID (`hid-AA:BB:...-battery`, `ps-controller-battery-...`).
  *     C'est ce que le pilote a reçu de la manette, donc souvent la seule
  *     valeur disponible.
