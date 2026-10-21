@@ -114,7 +114,7 @@ void main() {
     await tester.pump();
 
     expect(session.mode, SourceMode.demo);
-    await tester.tap(find.text('Manette'));
+    await tester.tap(find.text('Manette').first);
     await tester.pump(const Duration(milliseconds: 40));
     expect(session.mode, SourceMode.real);
     expect(session.simulate, isFalse);

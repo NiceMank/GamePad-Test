@@ -113,6 +113,10 @@ class PadBridgeAndroid {
     }
   }
 
+  /// Dernière origine connue d'une lecture batterie (`android`, `kernel`,
+  /// `none`). Sert à expliquer l'absence de valeur au lieu de la taire.
+  String? lastBatterySource;
+
   Future<BatteryReading?> battery(int deviceId) async {
     try {
       final raw = await _method.invokeMethod<Map<Object?, Object?>>(
@@ -120,6 +124,7 @@ class PadBridgeAndroid {
         {'deviceId': deviceId},
       );
       if (raw == null) return null;
+      lastBatterySource = raw['source'] as String?;
       final percent = (raw['percent'] as num?)?.toDouble();
       return BatteryReading(
         at: DateTime.now(),
@@ -164,6 +169,22 @@ class PadBridgeAndroid {
       // ignoré
     } on MissingPluginException {
       // ignoré
+    }
+  }
+
+  /// Ce que le téléphone sait faire pour la batterie : API disponible,
+  /// nœuds sysfs lisibles. Affiché dans les réglages quand rien n'arrive.
+  Future<Map<String, Object?>> batteryDiagnostics() async {
+    try {
+      final raw = await _method.invokeMethod<Map<Object?, Object?>>(
+        'batteryDiagnostics',
+      );
+      if (raw == null) return const {};
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    } on PlatformException {
+      return const {};
+    } on MissingPluginException {
+      return const {};
     }
   }
 

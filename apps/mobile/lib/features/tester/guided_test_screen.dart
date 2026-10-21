@@ -213,18 +213,26 @@ class _GuidedTestScreenState extends State<GuidedTestScreen> {
           ),
         const SizedBox(height: 14),
         SizedBox(
-          height: 330,
+          height: 372,
           child: Controller3D(
             state: session.state,
             family: family,
-            height: 330,
+            height: 372,
+            spinning: false,
             showHint: true,
+            hintLabel: 'Glissez pour tourner · touchez une touche',
             onButtonTap: (button) {
               session.tapButton(button);
               _seen.add(button);
             },
           ),
         ),
+        if (!finished) ...[
+          const SizedBox(height: 12),
+          // Couverture : ce qui a été vu, ce qui reste. Utile, et ça remplit
+          // le bas de l'écran au lieu de laisser un vide.
+          _Coverage(seen: _seen, c: c),
+        ],
         if (_lastTitle != null && !finished) ...[
           const SizedBox(height: 6),
           Text(
@@ -470,6 +478,102 @@ class _Summary extends StatelessWidget {
               side: BorderSide(color: c.line),
               minimumSize: const Size(0, 38),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Les touches attendues, cochées au fur et à mesure.
+class _Coverage extends StatelessWidget {
+  const _Coverage({required this.seen, required this.c});
+
+  final Set<PadButton> seen;
+  final PadColors c;
+
+  static const _keys = [
+    (PadButton.a, 'A'),
+    (PadButton.b, 'B'),
+    (PadButton.x, 'X'),
+    (PadButton.y, 'Y'),
+    (PadButton.dpadUp, '↑'),
+    (PadButton.l1, 'L1'),
+    (PadButton.r1, 'R1'),
+    (PadButton.l2, 'L2'),
+    (PadButton.r2, 'R2'),
+    (PadButton.start, 'MENU'),
+    (PadButton.select, 'VIEW'),
+    (PadButton.l3, 'L3'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final done = _keys.where((k) => seen.contains(k.$1)).length;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Touches vues',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: c.muted,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$done / ${_keys.length}',
+                style: TextStyle(
+                  fontFamily: PadType.mono,
+                  fontSize: 10,
+                  color: c.muted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final k in _keys)
+                Container(
+                  constraints: const BoxConstraints(minWidth: 30),
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: seen.contains(k.$1)
+                        ? c.green.withValues(alpha: 0.14)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: seen.contains(k.$1)
+                          ? c.green.withValues(alpha: 0.5)
+                          : c.line,
+                    ),
+                  ),
+                  child: Text(
+                    k.$2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: seen.contains(k.$1) ? c.green : c.muted,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

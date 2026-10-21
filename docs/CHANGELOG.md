@@ -1,5 +1,61 @@
 # Journal des versions
 
+## 0.6.0 — batterie lue pour de vrai, 3D immobile, nettoyage
+
+Retour d'usage après la 0.5.0 : « des trucs marchaient mais on dirait un
+débutant, même les infos de batterie ne s'affichaient pas ». Les trois
+reproches étaient fondés.
+
+### La batterie ne s'affichait pas — pourquoi
+
+Deux erreurs dans le code natif, pas un problème de manette :
+
+1. **`InputDevice.getBatteryState()` était appelé sur le thread principal.**
+   C'est un appel Binder synchrone qui lit un nœud du noyau : sur une manette
+   Bluetooth il peut bloquer plusieurs secondes, et geler l'interface.
+2. **Aucun repli.** Beaucoup de manettes ne renseignent pas cette API ; le code
+   renvoyait alors « inconnu », sans jamais essayer autre chose.
+
+Corrigé :
+
+* Nouveau `BatteryReader` : lecture **hors thread principal**, une seule à la
+  fois, avec cache de 20 s.
+* Trois sources essayées dans l'ordre : API Android 12+, puis les nœuds
+  noyau `/sys/class/power_supply/*-battery` (les manettes HID y publient leur
+  niveau), puis la dernière valeur connue.
+* L'appel de `describe()` lisait aussi la batterie → chaque scan des manettes
+  bloquait le thread principal. Supprimé.
+* Quand aucune valeur n'existe, l'écran dit **pourquoi** et propose
+  « Réessayer », au lieu d'afficher un tiret muet.
+
+### La 3D tournait toute seule
+
+* Modèle **immobile par défaut**. Plus d'auto-rotation.
+* Deux commandes seulement, en haut à droite du cadre : **Tourner / Stop** et
+  **Recentrer**. L'aide « Glissez pour tourner » disparaît dès qu'on s'en sert.
+* Test de non-régression : la scène ne bouge pas tant que l'utilisateur ne
+  demande rien.
+
+### Ce qui faisait « débutant »
+
+* **« Source des entrées » écrit deux fois** dans les réglages (titre de
+  section + titre de carte). Réglages réécrits : trois groupes, aucune
+  répétition, plus de carte-dans-carte.
+* **Écran de test à moitié vide** : le modèle est plus grand et la couverture
+  des touches (« Touches vues, 4/12 ») remplit le bas utilement.
+* **« DÉCHARGE » affiché deux fois** sur l'écran batterie ; le temps de charge
+  n'apparaît plus que pendant la charge.
+* Glyphes `☰` et `▣` rendus en carrés vides selon la police : remplacés par
+  des libellés sûrs.
+* Étiquettes « Bridge Android · pad_bridge · InputDevice… » — du vocabulaire
+  d'implémentation à l'écran. Remplacées par le nom de la manette et son
+  transport.
+
+### Tests
+
+**39 tests** dans l'application (+3 sur le chemin batterie, +4 sur la scène
+immobile). Tous les paquets analysés sans avertissement.
+
 ## 0.5.0 — accueil, logo, actualisation
 
 ### Introduction du premier lancement

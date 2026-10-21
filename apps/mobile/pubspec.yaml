@@ -1,7 +1,7 @@
 name: padlab
 description: PadLab — test, diagnostic et remapping de manettes. Android d'abord.
 publish_to: none
-version: 0.5.0+500
+version: 0.6.0+600
 
 environment:
   sdk: ^3.9.0

@@ -20,6 +20,13 @@ class _FakeBridge implements PadBridgeAndroid {
 
   int vibrateCalls = 0;
 
+  @override
+  String? lastBatterySource = 'test';
+
+  @override
+  Future<Map<String, Object?>> batteryDiagnostics() async =>
+      const {'officialApi': true, 'sysfsReadable': false};
+
   static const dualSense = PadDevice(
     id: 7,
     name: 'DualSense Wireless Controller',

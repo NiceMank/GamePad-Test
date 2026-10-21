@@ -28,6 +28,9 @@ class Controller3D extends StatefulWidget {
     this.initialPitch = 0.38,
     this.onButtonTap,
     this.showHint = false,
+    this.hintLabel = 'Faites glisser pour tourner',
+    this.spinning = false,
+    this.resetSignal,
   });
 
   final PadState state;
@@ -45,6 +48,19 @@ class Controller3D extends StatefulWidget {
 
   /// Affiche « glisser pour tourner » sous le modèle.
   final bool showHint;
+
+  /// Texte affiché sous le modèle quand [showHint] est vrai.
+  final String hintLabel;
+
+  /// Rotation automatique, **pilotée par l'appelant**.
+  ///
+  /// Par défaut le modèle est parfaitement immobile : c'est l'utilisateur qui
+  /// décide de le faire tourner, par le geste ou par ce bouton. Une scène qui
+  /// bouge toute seule fatigue et empêche de lire les détails.
+  final bool spinning;
+
+  /// Notifier : chaque notification replace la vue à son angle d'origine.
+  final Listenable? resetSignal;
 
   @override
   State<Controller3D> createState() => _Controller3DState();
@@ -86,13 +102,31 @@ class _Controller3DState extends State<Controller3D>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    // Le ticker ne tourne que lorsqu'il y a quelque chose à animer : au
-    // repos, plus aucune image n'est demandée.
-    if (widget.autoRotate) _startTicker();
+    widget.resetSignal?.addListener(_reset);
+    // Au repos, aucune image n'est demandée : le ticker ne sert qu'au geste
+    // d'inertie et à la rotation demandée explicitement.
+    if (_spin) _startTicker();
+  }
+
+  bool get _spin => widget.spinning || widget.autoRotate;
+
+  @override
+  void didUpdateWidget(covariant Controller3D old) {
+    super.didUpdateWidget(old);
+    if (old.resetSignal != widget.resetSignal) {
+      old.resetSignal?.removeListener(_reset);
+      widget.resetSignal?.addListener(_reset);
+    }
+    if (_spin) {
+      _startTicker();
+    } else if (!_view.busy) {
+      _ticker.stop();
+    }
   }
 
   @override
   void dispose() {
+    widget.resetSignal?.removeListener(_reset);
     _ticker.dispose();
     _view.dispose();
     super.dispose();
@@ -118,7 +152,7 @@ class _Controller3DState extends State<Controller3D>
       _view.velocity *= math.pow(0.02, dt).toDouble(); // amortissement ~ 1,9 s
       dirty = true;
     }
-    if (widget.autoRotate) {
+    if (_spin) {
       _view.yaw += dt * 0.35;
       dirty = true;
     }
@@ -131,7 +165,7 @@ class _Controller3DState extends State<Controller3D>
       dirty = true;
     }
     if (dirty) _view.bump();
-    if (!_view.busy && !widget.autoRotate) _ticker.stop();
+    if (!_view.busy && !_spin) _ticker.stop();
   }
 
   void _reset() {
@@ -250,8 +284,12 @@ class _Controller3DState extends State<Controller3D>
                 height: hintHeight,
                 child: Center(
                   child: Text(
-                    'glisser pour tourner · double-tap pour recentrer',
-                    style: TextStyle(fontSize: 9.5, color: colors.muted),
+                    widget.hintLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 0.1,
+                      color: colors.muted,
+                    ),
                   ),
                 ),
               ),

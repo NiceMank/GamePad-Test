@@ -33,6 +33,7 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
     private lateinit var eventChannel: EventChannel
     private var activity: Activity? = null
     private var reader: PadDeviceReader? = null
+    private var battery: BatteryReader? = null
     private var sink: EventChannel.EventSink? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -67,6 +68,7 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         instance = this
         reader = PadDeviceReader(binding.applicationContext)
+        battery = BatteryReader(binding.applicationContext)
         methodChannel = MethodChannel(binding.binaryMessenger, "padlab/bridge")
         methodChannel.setMethodCallHandler(this)
         eventChannel = EventChannel(binding.binaryMessenger, "padlab/events")
@@ -78,6 +80,8 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
         eventChannel.setStreamHandler(null)
         instance = null
         reader = null
+        battery?.shutdown()
+        battery = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -112,9 +116,16 @@ class PadBridgePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHa
             }
             "battery" -> {
                 val id = call.argument<Int>("deviceId") ?: return result.error("bad_args", "deviceId manquant", null)
-                val device = InputDevice.getDevice(id)
-                result.success(device?.let { reader.readBattery(it) } ?: mapOf("percent" to null, "status" to "unknown"))
+                // Jamais sur le thread principal : getBatteryState() peut
+                // bloquer plusieurs secondes sur une manette Bluetooth.
+                val battery = battery
+                if (battery == null) {
+                    result.success(BatteryReader.UNKNOWN)
+                } else {
+                    battery.read(id) { payload -> result.success(payload) }
+                }
             }
+            "batteryDiagnostics" -> result.success(battery?.diagnostics() ?: emptyMap<String, Any?>())
             "vibrate" -> {
                 val id = call.argument<Int>("deviceId") ?: return result.error("bad_args", "deviceId manquant", null)
                 val strong = call.argument<Double>("strong") ?: 1.0

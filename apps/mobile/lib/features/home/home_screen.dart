@@ -86,43 +86,18 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 10),
 
           // --- scène 3D --------------------------------------------------------
-          SizedBox(
-            height: 260,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: RadialGradient(
-                        center: const Alignment(0, -0.15),
-                        radius: 0.85,
-                        colors: [
-                          c.cyan.withValues(alpha: c.isDark ? 0.09 : 0.07),
-                          c.bg.withValues(alpha: 0),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (device == null)
-                  // Aucune manette : on ne montre pas un modèle inventé qui
-                  // passerait pour le matériel de l'utilisateur.
-                  _NoDevice(onDemo: () => session.setMode(SourceMode.demo))
-                else
-                  Controller3D(
-                    state: session.state,
-                    family: family,
-                    layout: family.layout,
-                    height: 250,
-                    autoRotate: true,
-                    showHint: true,
-                    onButtonTap: session.tapButton,
-                  ),
-              ],
+          if (device == null)
+            SizedBox(
+              height: 260,
+              child: _NoDevice(onDemo: () => session.setMode(SourceMode.demo)),
+            )
+          else
+            ControllerStage(
+              key: ValueKey(device.id),
+              state: session.state,
+              family: family,
+              onButtonTap: session.tapButton,
             ),
-          ),
           const SizedBox(height: 6),
 
           // --- bandeau de mesures ---------------------------------------------
@@ -596,4 +571,162 @@ class _NoDevice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// La scène 3D et ses commandes.
+///
+/// Le modèle est **immobile au repos**. Deux gestes seulement, choisis par
+/// l'utilisateur : glisser sur le modèle, ou appuyer sur le bouton de
+/// rotation. Le bouton de recentrage remet l'angle de départ.
+class ControllerStage extends StatefulWidget {
+  const ControllerStage({
+    super.key,
+    required this.state,
+    required this.family,
+    this.onButtonTap,
+  });
+
+  final PadState state;
+  final ControllerFamily family;
+  final ValueChanged<PadButton>? onButtonTap;
+
+  @override
+  State<ControllerStage> createState() => _ControllerStageState();
+}
+
+class _ControllerStageState extends State<ControllerStage> {
+  bool _spinning = false;
+  bool _touched = false;
+  final _reset = _Pulse();
+
+  @override
+  void dispose() {
+    _reset.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      children: [
+        SizedBox(
+          height: 248,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.12),
+                      radius: 0.9,
+                      colors: [
+                        c.cyan.withValues(alpha: c.isDark ? 0.08 : 0.06),
+                        c.bg.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Controller3D(
+                state: widget.state,
+                family: widget.family,
+                layout: widget.family.layout,
+                height: 240,
+                spinning: _spinning,
+                resetSignal: _reset,
+                showHint: !_touched,
+                hintLabel: 'Glissez pour tourner',
+                onButtonTap: widget.onButtonTap,
+              ),
+              // Commandes : en haut à droite, pour ne pas recouvrir l'aide
+              // affichée sous le modèle.
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Row(
+                  children: [
+                    _StageButton(
+                      icon: _spinning
+                          ? Icons.pause_rounded
+                          : Icons.threesixty_rounded,
+                      label: _spinning ? 'Stop' : 'Tourner',
+                      active: _spinning,
+                      onTap: () => setState(() {
+                        _spinning = !_spinning;
+                        _touched = true;
+                      }),
+                    ),
+                    const SizedBox(width: 6),
+                    _StageButton(
+                      icon: Icons.center_focus_strong_rounded,
+                      label: 'Recentrer',
+                      active: false,
+                      onTap: () {
+                        _reset.ping();
+                        setState(() => _touched = true);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StageButton extends StatelessWidget {
+  const _StageButton({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: c.surface.withValues(alpha: c.isDark ? 0.92 : 0.96),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? c.cyan : c.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: active ? c.cyan : c.muted),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                color: active ? c.cyan : c.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Petit notifier à usage unique : sert de signal « recentrer ».
+class _Pulse extends ChangeNotifier {
+  void ping() => notifyListeners();
 }

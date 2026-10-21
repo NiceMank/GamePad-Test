@@ -6,9 +6,9 @@
 plus un relais PC qui émule une **manette Xbox 360** pour jouer avec n'importe quelle
 manette connectée au téléphone.
 
-> **0.5.0** — introduction au premier lancement, logo PadLab (icône + écran de
-> lancement) et actualisation automatique des manettes et de la batterie.
-> Voir [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+> **0.6.0** — la batterie est réellement lue (hors thread principal, avec repli
+> noyau), la manette 3D reste immobile sauf demande de l'utilisateur, et les
+> écrans ont été nettoyés. Voir [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 | Icône | Écran de lancement |
 |---|---|
@@ -64,11 +64,12 @@ changer de source remet les analyseurs à zéro.
 | Boutons, croix directionnelle | `KeyEvent` → `KEYCODE_BUTTON_*` |
 | Sticks, gâchettes | `MotionEvent` → `AXIS_*` (histogramme natif inclus) |
 | Nom, VID/PID, transport | `InputDevice` |
-| Batterie | `InputDevice.getBatteryState()` — **Android 12+** |
+| Batterie | `getBatteryState()` (Android 12+) **puis** nœuds noyau `/sys/class/power_supply/*-battery`, lus hors thread principal |
 | Vibration | `VibratorManager`, deux canaux quand la manette les expose |
 
-Honnêteté sur les limites : sous Android 12, l'API batterie n'existe pas et
-l'écran affiche « non exposée » plutôt qu'un pourcentage inventé. Le remapping
+Honnêteté sur les limites : si aucune des deux sources ne répond, l'écran
+affiche la raison exacte et un bouton « Réessayer » — jamais un pourcentage
+inventé. Le remapping
 système Android resterait impossible sans root ; PadLab remappe dans
 l'application et, côté PC, via une manette Xbox virtuelle. iOS n'est pas couvert.
 

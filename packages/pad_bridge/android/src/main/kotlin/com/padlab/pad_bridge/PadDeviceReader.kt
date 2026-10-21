@@ -60,8 +60,6 @@ class PadDeviceReader(@Suppress("unused") private val context: Context) {
             )
         }
 
-        val battery = readBattery(device)
-
         return mapOf(
             "id" to device.id,
             "name" to device.name,
@@ -76,33 +74,15 @@ class PadDeviceReader(@Suppress("unused") private val context: Context) {
                 "axes" to axes,
                 "buttonBits" to knownButtons(device),
                 "vibratorCount" to vibratorCount(device),
-                "hasBattery" to (battery["percent"] != null),
+                // On ne lit plus la batterie ici : c'était un appel Binder
+                // synchrone sur le thread principal, à chaque scan. La
+                // lecture vit dans BatteryReader, en tâche de fond.
+                "hasBattery" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S),
                 "hasLight" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S),
                 "hasMotion" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S),
                 "hasTouchpad" to hasTouchpad(device)
             ),
-            "battery" to battery
         )
-    }
-
-    /** Batterie : API 31+. Renvoie percent=null si non exposée (jamais 0 !). */
-    fun readBattery(device: InputDevice): Map<String, Any?> {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return mapOf("percent" to null, "status" to "unknown")
-        }
-        val state = device.batteryState ?: return mapOf("percent" to null, "status" to "unknown")
-        if (!state.isPresent) return mapOf("percent" to null, "status" to "unknown")
-
-        val capacity = state.capacity
-        val percent = if (capacity.isNaN()) null else (capacity * 100.0).coerceIn(0.0, 100.0)
-        val status = when (state.status) {
-            android.os.BatteryManager.BATTERY_STATUS_CHARGING -> "charging"
-            android.os.BatteryManager.BATTERY_STATUS_DISCHARGING -> "discharging"
-            android.os.BatteryManager.BATTERY_STATUS_FULL -> "full"
-            android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "notCharging"
-            else -> "unknown"
-        }
-        return mapOf("percent" to percent, "status" to status)
     }
 
     /** Deux moteurs quand la manette les expose (API 31+). */

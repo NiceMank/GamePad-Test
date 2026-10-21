@@ -705,9 +705,31 @@ class PadSession extends ChangeNotifier {
     _notify();
   }
 
+  /// Dernière raison expliquant l'absence de niveau de batterie.
+  String? batteryUnavailableReason;
+
+  /// Enregistre qu'aucune valeur n'est disponible, avec sa raison.
+  void setBatteryUnavailable(String reason) {
+    if (_disposed) return;
+    batteryUnavailableReason = reason;
+    if (battery.percent != null) {
+      // On garde la dernière valeur connue plutôt que de l'effacer : une
+      // lecture ratée ne doit pas faire disparaître un niveau déjà lu.
+      _notify();
+      return;
+    }
+    battery = BatteryReading(
+      at: DateTime.now(),
+      status: BatteryStatus.unknown,
+      percent: null,
+    );
+    _notify();
+  }
+
   /// Met à jour la batterie (lecture native ou simulation continue).
   void setBattery(BatteryReading reading) {
     if (_disposed) return;
+    batteryUnavailableReason = null;
     battery = reading;
     batteryEstimator.add(reading);
     _notify();

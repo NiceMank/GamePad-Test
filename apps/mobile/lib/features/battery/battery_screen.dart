@@ -27,24 +27,26 @@ class BatteryScreen extends StatelessWidget {
             session.device?.name ?? 'Manette',
             style: TextStyle(fontSize: 12, color: c.muted),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           Center(
             child: BatteryRing(
               percent: percent,
               size: 168,
-              sublabel: session.battery.status.labelFr.toUpperCase(),
+              sublabel: percent == null
+                  ? 'NON COMMUNIQUÉE'
+                  : session.battery.status.labelFr.toUpperCase(),
             ),
           ),
           if (percent == null) ...[
-            const SizedBox(height: 10),
-            Text(
-              session.isReal
-                  ? 'Cette manette n\'expose pas son niveau de batterie '
-                        '(Android 12 ou plus est nécessaire pour le lire). '
-                        'Aucune valeur n\'est affichée plutôt qu\'un chiffre inventé.'
-                  : 'Aucune lecture disponible.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, height: 1.5, color: c.muted),
+            const SizedBox(height: 16),
+            // Pas de valeur : on dit pourquoi, et quoi faire. Un tiret seul
+            // laisse l'utilisateur devant un écran cassé.
+            _NoBattery(
+              reason: session.batteryUnavailableReason ??
+                  (session.isReal
+                      ? 'Aucune lecture pour le moment.'
+                      : 'Mode démonstration : la batterie est simulée.'),
+              onRetry: session.refreshNow,
             ),
           ],
           const SizedBox(height: 16),
@@ -68,24 +70,16 @@ class BatteryScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: StatTile(
-                  label: 'ÉTAT',
-                  value: session.battery.status.labelFr,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: StatTile(
-                  label: 'TEMPS DE CHARGE',
-                  value: estimate.toFull == null ? '—' : _fmt(estimate.toFull!),
-                ),
-              ),
-            ],
-          ),
+          // Le temps de charge n'a de sens que pendant la charge : l'afficher
+          // à « — » le reste du temps, c'est du remplissage.
+          if (session.battery.status.isCharging) ...[
+            const SizedBox(height: 8),
+            StatTile(
+              label: 'TEMPS DE CHARGE RESTANT',
+              value: estimate.toFull == null ? '—' : _fmt(estimate.toFull!),
+              badge: estimate.toFull == null ? 'estimation' : null,
+            ),
+          ],
           if (estimate.reason != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -254,4 +248,68 @@ class _BatteryChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BatteryChartPainter old) => old.readings.length != readings.length;
+}
+
+/// Explication d'une batterie indisponible : cause, portée, action.
+class _NoBattery extends StatelessWidget {
+  const _NoBattery({required this.reason, required this.onRetry});
+
+  final String reason;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.battery_alert_rounded, size: 16, color: c.amber),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Niveau non communiqué',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: c.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            reason,
+            style: TextStyle(fontSize: 10.5, height: 1.55, color: c.muted),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              GhostButton(
+                label: 'Réessayer',
+                icon: Icons.refresh_rounded,
+                onPressed: onRetry,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Le pourcentage n\'est jamais inventé.',
+                  style: TextStyle(fontSize: 9.5, color: c.muted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

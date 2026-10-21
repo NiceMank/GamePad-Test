@@ -177,15 +177,34 @@ class HardwareSource {
     lastError = null;
   }
 
+  /// Relit la batterie. Renvoie toujours quelque chose : soit une valeur,
+  /// soit la raison de son absence — jamais un silence.
   Future<void> refreshBattery() async {
     final id = session.activeDeviceId;
     if (id == 0) return;
     final reading = await _bridge.battery(id);
-    if (reading != null) {
-      lastBatteryAt = DateTime.now();
-      session.setBattery(reading);
+    lastBatteryAt = DateTime.now();
+    lastBatterySource = _bridge.lastBatterySource;
+    if (reading == null) {
+      session.setBatteryUnavailable('Le téléphone n\'a pas répondu.');
+      return;
     }
+    if (reading.percent == null) {
+      session.setBatteryUnavailable(switch (lastBatterySource) {
+        'none' =>
+          'Cette manette ne publie pas son niveau : Android ne l\'expose pas '
+              'et aucun nœud noyau n\'est lisible.',
+        'android' => 'Le système répond « inconnu » : la manette ne fournit pas '
+            'cette information.',
+        'kernel' => 'Nœud noyau présent mais sans valeur exploitable.',
+        _ => 'Aucune source de batterie pour cette manette.',
+      });
+      return;
+    }
+    session.setBattery(reading);
   }
+
+  String? lastBatterySource;
 
   Future<Map<String, Object?>> platformInfo() => _bridge.platformInfo();
 
